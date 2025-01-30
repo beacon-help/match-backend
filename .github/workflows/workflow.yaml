@@ -1,5 +1,5 @@
 env:
-  DOCKER_SERVICE: match-backend
+  DOCKER_SERVICE: match-backend-match-backend-1
   FORMAT_TOOLS_DIR: format-tools
 
 name: Workflow
@@ -14,7 +14,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Build docker containers
         run: |
-          docker-compose up -d
+          docker compose build
 
   code-style:
     needs: build
@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Build docker containers
         run: |
-          docker-compose up -d
+          docker compose up -d
       - name: Run mypy
         run: docker exec $DOCKER_SERVICE sh $FORMAT_TOOLS_DIR/mypy.sh
       - name: Run black
@@ -40,6 +40,6 @@ jobs:
         uses: actions/checkout@v3
       - name: Build docker containers
         run: |
-          docker-compose up -d
+          docker compose up -d
       - name: Run Pytest
-        run: docker exec $DOCKER_SERVICE pytest tests
+        run: docker exec $DOCKER_SERVICE pytest

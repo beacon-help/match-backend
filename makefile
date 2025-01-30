@@ -19,7 +19,7 @@ bash:
 	docker-compose exec -it $(SERVICE) bash
 
 tests:
-	docker-compose run $(SERVICE)  pytest -v
+	docker-compose run $(SERVICE)  pytest tests/ -v
 
 
 format:
