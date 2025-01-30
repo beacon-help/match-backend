@@ -1,0 +1,8 @@
+services:
+  match-backend:
+    build: .
+    tty: true
+    ports:
+    - "8000:8000"
+    volumes:
+      - ./://usr/app/:delegated

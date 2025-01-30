@@ -1,0 +1,45 @@
+env:
+  DOCKER_SERVICE: match-backend
+  FORMAT_TOOLS_DIR: format-tools
+
+name: Workflow
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: Build docker containers
+        run: |
+          docker-compose up -d
+
+  code-style:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: Build docker containers
+        run: |
+          docker-compose up -d
+      - name: Run mypy
+        run: docker exec $DOCKER_SERVICE sh $FORMAT_TOOLS_DIR/mypy.sh
+      - name: Run black
+        run: docker exec  $DOCKER_SERVICE sh $FORMAT_TOOLS_DIR/black.sh --check
+      - name: Run isort
+        run: docker exec  $DOCKER_SERVICE sh $FORMAT_TOOLS_DIR/isort.sh --check
+
+  tests:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: Build docker containers
+        run: |
+          docker-compose up -d
+      - name: Run Pytest
+        run: docker exec $DOCKER_SERVICE pytest tests

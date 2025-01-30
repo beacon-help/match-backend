@@ -1,0 +1,20 @@
+[tool.pytest.ini_options]
+testpaths = ["match/tests"]
+
+
+[tool.black]
+line-length = 1000
+target-version = ["py313"]
+
+[tool.mypy]
+python_version = "3.13"
+disallow_untyped_defs = true
+exclude = [
+    "tests"
+]
+
+[tool.isort]
+profile = "black"
+# isort doesn't support 3.13
+py_version = 312
+line_length = 100
