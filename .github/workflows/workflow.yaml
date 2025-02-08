@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Build docker containers
         run: |
-          docker compose up -d
+          docker compose --env-file dotenv/.env.test up -d
       - name: Run mypy
         run: docker exec $DOCKER_SERVICE sh $FORMAT_TOOLS_DIR/mypy.sh
       - name: Run black
@@ -40,6 +40,6 @@ jobs:
         uses: actions/checkout@v3
       - name: Build docker containers
         run: |
-          docker compose up -d
+          docker compose --env-file dotenv/.env.test up -d
       - name: Run Pytest
-        run: docker exec $DOCKER_SERVICE pytest
+        run: docker exec --env-file dotenv/.env.test $DOCKER_SERVICE pytest

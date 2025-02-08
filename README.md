@@ -6,6 +6,9 @@ make build
 make up
 ```
 
+packages
+keyring
+
 Now you can reach it locally at: [http://localhost:8000].
 Docs at: [http://localhost:8000/docs].
 
