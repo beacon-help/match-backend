@@ -3,7 +3,7 @@ from http import HTTPStatus
 
 from fastapi import APIRouter
 
-from match.api.schemas import TaskCreationRequestSchema, TaskSchema, TaskStatus, TaskType
+from match.infra.api.schemas import TaskCreationRequestSchema, TaskSchema, TaskStatus, TaskType
 
 router = APIRouter()
 

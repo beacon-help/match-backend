@@ -5,10 +5,10 @@ import uvicorn
 from fastapi import FastAPI
 
 from dotenv import dotenv_values
-from match.api.health import router as health_api
-from match.api.task import router as task_api
-from match.api.user import router as user_api
 from match.config import Config
+from match.infra.api.health import router as health_api
+from match.infra.api.task import router as task_api
+from match.infra.api.user import router as user_api
 
 USER_PREFIX = "/user"
 TASK_PREFIX = "/task"

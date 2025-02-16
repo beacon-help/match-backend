@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from fastapi import APIRouter, HTTPException
 
-from match.api.schemas import UserCreationRequestSchema, UserSchema
+from match.infra.api.schemas import UserCreationRequestSchema, UserSchema
 
 router = APIRouter()
 
