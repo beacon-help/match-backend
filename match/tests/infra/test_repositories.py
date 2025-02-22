@@ -1,7 +1,7 @@
 import pytest
 
 from match.domain.user import User
-from match.infra.api.repositories import InMemoryUserRepository
+from match.infra.repositories import InMemoryUserRepository
 
 
 @pytest.fixture(scope="function")
