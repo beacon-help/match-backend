@@ -18,7 +18,7 @@ bash:
 	make up
 	docker-compose exec -it $(SERVICE) bash
 
-tests:
+test:
 	docker-compose run $(SERVICE)  pytest match/tests/ -v
 
 

@@ -41,5 +41,6 @@ jobs:
       - name: Build docker containers
         run: |
           docker compose --env-file dotenv/.env.test up -d
+          docker exec $DOCKER_SERVICE cp dotenv/.env.test dotenv/.env
       - name: Run Pytest
         run: docker exec --env-file dotenv/.env.test $DOCKER_SERVICE pytest

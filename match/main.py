@@ -1,6 +1,7 @@
 import logging
 import os
 
+import sentry_sdk
 import uvicorn
 from fastapi import FastAPI
 
@@ -16,7 +17,7 @@ TASK_PREFIX = "/task"
 ENV_DIR = "dotenv/.env"
 
 
-def get_config() -> Config:
+def get_config(auto_convert: bool = True) -> Config:
     raw_config = {}
     ENV_VARS = ["ENV"]
     for env_var in ENV_VARS:
@@ -26,6 +27,14 @@ def get_config() -> Config:
             logging.warning(f"Environment value {env_var} not found. Skipping.")
 
     raw_config |= dotenv_values(ENV_DIR)  # type: ignore[arg-type]
+
+    if auto_convert:
+        for key, val in raw_config.items():
+            if val == "true":
+                raw_config[key] = True  # type: ignore[assignment]
+            elif val == "false":
+                raw_config[key] = False  # type: ignore[assignment]
+
     return Config(**raw_config)  # type: ignore[arg-type]
 
 
@@ -36,7 +45,26 @@ def configure_routing(app: FastAPI) -> None:
 
 
 def create_app() -> FastAPI:
-    config = get_config()
+    config: Config = get_config()
+
+    if config.SENTRY_ENABLED:
+        sentry_sdk.init(
+            dsn=config.SENTRY_DSN,
+            # Add data like request headers and IP for users,
+            # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+            send_default_pii=True,
+            # Set traces_sample_rate to 1.0 to capture 100%
+            # of transactions for tracing.
+            traces_sample_rate=1.0,
+            environment=config.ENV,
+            _experiments={
+                # Set continuous_profiling_auto_start to True
+                # to automatically start the profiler on when
+                # possible.
+                "continuous_profiling_auto_start": True,
+            },
+        )
+
     app = FastAPI()
     configure_routing(app)
     return app
