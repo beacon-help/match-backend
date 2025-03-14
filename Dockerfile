@@ -1,10 +1,11 @@
 FROM python:3.13-alpine
 
-RUN apk update && apk add bash
+RUN apk -U upgrade && apk add bash
 
 WORKDIR /usr/app
 
 COPY requirements.txt .
+COPY /match /dotenv makefile pyproject.toml ./
 
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt

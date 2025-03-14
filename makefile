@@ -3,7 +3,7 @@ FORMAT_TOOLS_DIR = format-tools
 
 build:
 	make down
-	docker-compose build --no-cache
+	docker build . -t match --no-cache
 
 up:
 	docker-compose up -d
