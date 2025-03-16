@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:python3.13-alpine
 
-RUN apk -U upgrade && apk add bash && apk add curl
+RUN apk -U upgrade && apk add bash
 
 COPY pyproject.toml uv.lock .
 
