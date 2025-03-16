@@ -43,4 +43,4 @@ jobs:
           docker compose up -d
           docker exec $DOCKER_SERVICE cp dotenv/.env.test dotenv/.env
       - name: Run Pytest
-        run: docker exec $DOCKER_SERVICE pytest
+        run: docker exec $DOCKER_SERVICE uv run pytest

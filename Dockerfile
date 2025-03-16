@@ -1,15 +1,12 @@
-FROM python:3.13-alpine
+FROM ghcr.io/astral-sh/uv:python3.13-alpine
 
-RUN apk -U upgrade && apk add bash
+RUN apk -U upgrade && apk add bash && apk add curl
 
-WORKDIR /usr/app
+COPY pyproject.toml uv.lock .
 
-COPY requirements.txt .
-COPY /match /dotenv makefile pyproject.toml ./
-
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-dev --frozen
 
 WORKDIR /usr/app
 
-CMD ["uvicorn", "match.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uv", "run", "uvicorn", "match.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

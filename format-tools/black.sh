@@ -1,2 +1,2 @@
 #!/bin/bash
-black . $@ --config pyproject.toml
+uv run black . $@ --config pyproject.toml

@@ -1,2 +1,2 @@
 #!/bin/bash
-isort . $@
+uv run isort . $@

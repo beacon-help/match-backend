@@ -1,2 +1,2 @@
 #!/bin/bash
-mypy . $@
+uv run mypy . $@
