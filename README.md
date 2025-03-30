@@ -7,8 +7,8 @@ make up
 ```
 
 
-Now you can reach it locally at: [http://localhost:8000].
-Docs at: [http://localhost:8000/docs].
+Now you can reach it locally at: [http://localhost:8000]().
+Docs at: [http://localhost:8000/docs]().
 
 
 A selection of cool `make` commands:
