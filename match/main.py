@@ -3,13 +3,16 @@ import os
 
 import sentry_sdk
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from dotenv import dotenv_values
+from match.app.service import MatchService
+from match.bootstrap import get_service
 from match.config import Config
 from match.infra.api.health import router as health_api
 from match.infra.api.task import router as task_api
 from match.infra.api.user import router as user_api
+from match.infra.repositories import InMemoryMatchRepository
 
 USER_PREFIX = "/user"
 TASK_PREFIX = "/task"
@@ -40,8 +43,8 @@ def get_config(auto_convert: bool = True) -> Config:
 
 def configure_routing(app: FastAPI) -> None:
     app.include_router(health_api)
-    app.include_router(user_api, prefix=USER_PREFIX)
-    app.include_router(task_api, prefix=TASK_PREFIX)
+    app.include_router(user_api, prefix=USER_PREFIX, dependencies=[Depends(get_service)])
+    app.include_router(task_api, prefix=TASK_PREFIX, dependencies=[Depends(get_service)])
 
 
 def create_app() -> FastAPI:

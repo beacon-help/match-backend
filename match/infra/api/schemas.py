@@ -19,9 +19,10 @@ class UserSchema(BaseModel):
 
 class TaskStatus(Enum):
     OPEN = "open"
-    PENDING_APPROVAL = "pending_approval"
-    IN_PROGRESS = "in_progress"
-    DONE = "done"
+    PENDING = "pending"
+    APPROVED = "approved"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
     CANCELLED = "cancelled"
 
 
@@ -30,19 +31,16 @@ class TaskType(Enum):
 
 
 class TaskCreationRequestSchema(BaseModel):
-    name: str
-    type: TaskType
+    title: str
     description: str
-    location: str
 
 
 class TaskSchema(BaseModel):
     id: int
-    name: str
+    title: str
     created_at: datetime
+    updated_at: datetime | None
     status: TaskStatus
-    requester_id: int
-    helper_id: int | None = None
-    type: TaskType
+    owner_id: int
+    helper_id: int | None
     description: str
-    location: str
