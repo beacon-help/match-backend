@@ -47,13 +47,11 @@ def manage_task(request: Request, task_id: int, action: str, helper_id: int | No
         case "approve":
             if helper_id is None:
                 raise Exception("Helper id not provided.")
-            task = service.task_approve(task_id, user_id, helper_id)
-        # case "close":
-        #     task_schema.helper_id = 4
-        #     task_schema.status = TaskStatus.DONE
-        # case "cancel":
-        #     task_schema.helper_id = 4
-        #     task_schema.status = TaskStatus.CANCELLED
+            task = service.task_approve(task_id, owner_id=user_id, helper_id=helper_id)
+        case "reject":
+            if helper_id is None:
+                raise Exception("Helper id not provided.")
+            task = service.task_reject(task_id, owner_id=user_id, helper_id=helper_id)
         case _:
             raise Exception
 

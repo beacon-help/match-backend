@@ -71,7 +71,12 @@ def test_get_task(test_client):
 
 
 def test_create_task(test_client):
-    payload = {"title": "title", "description": "description"}
-    response = test_client.post("/task", json=payload, headers=build_headers(100))
+    response = test_client.post("/task", json={"title": "title", "description": "description"}, headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.CREATED
+
+
+def test_join_task(test_client):
+    new_task = test_client.post("/task", json={"title": "title", "description": "description"}, headers=build_headers(100)).json()
+    response = test_client.put(f"/task/{str(new_task['id'])}", params={"action": "join"}, headers=build_headers(101))
+    assert response.status_code == HTTPStatus.OK

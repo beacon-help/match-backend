@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 from datetime import timezone as tz
 
@@ -28,12 +29,11 @@ class InMemoryMatchRepository(MatchRepository):
         user = User(id=user_id, **user_data)
         self.users[user.id] = user
         print(self.users)
-        return user
+        return deepcopy(user)
 
     def get_user_by_id(self, user_id: int) -> User:
         try:
-            print(self.users)
-            return self.users[user_id]
+            return deepcopy(self.users[user_id])
         except KeyError:
             raise exceptions.UserNotFound
 
@@ -42,21 +42,21 @@ class InMemoryMatchRepository(MatchRepository):
         while task_id in self.tasks:
             task_id += 1
         task.id = task_id
-        self.tasks[task_id] = task
-        return task
+        self.tasks[task_id] = deepcopy(task)
+        return deepcopy(task)
 
     def get_task_by_id(self, task_id: int) -> Task:
         try:
-            return self.tasks[task_id]
+            return deepcopy(self.tasks[task_id])
         except KeyError:
             raise exceptions.TaskNotFound
 
     def get_tasks(self) -> list[Task]:
-        return list(self.tasks.values())
+        return list(deepcopy(t) for t in self.tasks.values())
 
     def task_update(self, task: Task) -> Task:
         if task.id is None:
             raise Exception("Cannot update task without id.")
         self.get_task_by_id(task.id)
         self.tasks[task.id] = task
-        return task
+        return deepcopy(task)

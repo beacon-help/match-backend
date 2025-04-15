@@ -55,10 +55,12 @@ class Task:
         self.status = TaskStatus.APPROVED
         self._post_task_update()
 
-    def reject_helper(self, owner: User) -> None:
+    def reject_helper(self, owner: User, helper_id: int) -> None:
         self._validate_owner(owner)
         if self.status != TaskStatus.PENDING or not self.helper:
             raise Exception("Cannot reject helper.")
+        if self.helper.id != helper_id:
+            raise Exception(f"Incorrect helper_id {helper_id}")
         self.status = TaskStatus.OPEN
         self.helper = None
         self._post_task_update()

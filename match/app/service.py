@@ -40,5 +40,12 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.approve_helper(owner, helper_id=helper_id)
+        task = self.repository.task_update(task)
+        return task
 
+    def task_reject(self, task_id: int, owner_id: int, helper_id: int) -> Task:
+        task = self.get_task_by_id(task_id)
+        owner = self.get_user_by_id(owner_id)
+        task.reject_helper(owner, helper_id=helper_id)
+        task = self.repository.task_update(task)
         return task
