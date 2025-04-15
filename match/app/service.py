@@ -49,3 +49,24 @@ class MatchService:
         task.reject_helper(owner, helper_id=helper_id)
         task = self.repository.task_update(task)
         return task
+
+    def task_close(self, task_id: int, owner_id: int) -> Task:
+        task = self.get_task_by_id(task_id)
+        owner = self.get_user_by_id(owner_id)
+        task.close(owner)
+        task = self.repository.task_update(task)
+        return task
+
+    def task_report_success(self, task_id: int, owner_id: int) -> Task:
+        task = self.get_task_by_id(task_id)
+        owner = self.get_user_by_id(owner_id)
+        task.report_succeeded(owner)
+        task = self.repository.task_update(task)
+        return task
+
+    def task_report_failed(self, task_id: int, owner_id: int) -> Task:
+        task = self.get_task_by_id(task_id)
+        owner = self.get_user_by_id(owner_id)
+        task.report_failed(owner)
+        task = self.repository.task_update(task)
+        return task

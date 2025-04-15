@@ -16,8 +16,71 @@ class InMemoryMatchRepository(MatchRepository):
             self._setup_test_data()
 
     def _setup_test_data(self) -> None:
-        test_users = {100: User(100, "John", "Johnson", "john@johnson.com"), 101: User(101, "Adam", "Adamson", "adam@adamson.com")}
-        test_tasks = {100: Task(id=100, title="Help", description="please help me", owner=User(100, "John", "Johnson", "john@johnson.com"), status=TaskStatus.OPEN, updated_at=None, created_at=datetime(2024, 11, 14, tzinfo=tz.utc))}
+        test_users = {
+            100: User(100, "John", "Johnson", "john@johnson.com"),
+            101: User(101, "Adam", "Adamson", "adam@adamson.com"),
+        }
+        test_tasks = {
+            100: Task(
+                id=100,
+                title="Help",
+                description="please help me",
+                owner=User(100, "John", "Johnson", "john@johnson.com"),
+                status=TaskStatus.OPEN,
+                updated_at=None,
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+            ),
+            101: Task(
+                id=100,
+                title="Help",
+                description="please help me",
+                owner=User(100, "John", "Johnson", "john@johnson.com"),
+                helper=User(101, "Adam", "Adamson", "adam@adamson.com"),
+                status=TaskStatus.PENDING,
+                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+            ),
+            102: Task(
+                id=100,
+                title="Help",
+                description="please help me",
+                owner=User(100, "John", "Johnson", "john@johnson.com"),
+                helper=User(101, "Adam", "Adamson", "adam@adamson.com"),
+                status=TaskStatus.APPROVED,
+                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+            ),
+            103: Task(
+                id=100,
+                title="Help",
+                description="please help me",
+                owner=User(100, "John", "Johnson", "john@johnson.com"),
+                helper=User(101, "Adam", "Adamson", "adam@adamson.com"),
+                status=TaskStatus.SUCCEEDED,
+                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+            ),
+            104: Task(
+                id=100,
+                title="Help",
+                description="please help me",
+                owner=User(100, "John", "Johnson", "john@johnson.com"),
+                helper=User(101, "Adam", "Adamson", "adam@adamson.com"),
+                status=TaskStatus.FAILED,
+                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+            ),
+            105: Task(
+                id=100,
+                title="Help",
+                description="please help me",
+                owner=User(100, "John", "Johnson", "john@johnson.com"),
+                helper=User(101, "Adam", "Adamson", "adam@adamson.com"),
+                status=TaskStatus.CANCELLED,
+                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+            ),
+        }
 
         self.users.update(test_users)
         self.tasks.update(test_tasks)
