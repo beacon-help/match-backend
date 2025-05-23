@@ -10,15 +10,30 @@ class MatchService:
     repository: MatchRepository
 
     def create_user(self, first_name: str, last_name: str, email: str) -> User:
-        user_data = {"first_name": first_name, "last_name": last_name, "email": email}
+        user_data = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "is_verified": False,
+            "verification_code": None,
+        }
         user = self.repository.create_user(user_data=user_data)
         return user
+
+    def send_verification_request(self, user: User) -> None:
+        message = "hello"
+        print(f"SENDING: {message}")
+
+    def verify_user_with_code(self, user_id: int, verification_code: str) -> None:
+        user = self.get_user_by_id(user_id)
+        user = user.verify(verification_code)
+        self.repository.user_update(user)
 
     def get_user_by_id(self, user_id: int) -> User:
         return self.repository.get_user_by_id(user_id)
 
     def create_task(self, user_id: int, description: str, title: str) -> Task:
-        user = self.repository.get_user_by_id(user_id)
+        user = self.get_user_by_id(user_id)
         task = Task.create_task(owner=user, title=title, description=description)
         task = self.repository.create_task(task)
         return task

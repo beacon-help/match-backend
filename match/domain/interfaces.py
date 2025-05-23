@@ -12,6 +12,9 @@ class MatchRepository(abc.ABC):
     def get_user_by_id(self, user_id: int) -> User: ...
 
     @abc.abstractmethod
+    def user_update(self, user: User) -> User: ...
+
+    @abc.abstractmethod
     def create_task(self, task: Task) -> Task: ...
 
     @abc.abstractmethod

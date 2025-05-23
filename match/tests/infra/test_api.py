@@ -1,5 +1,10 @@
 import json
 from http import HTTPStatus
+from uuid import uuid4
+
+import pytest
+
+VALID_VERIF_CODE = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
 
 
 def build_headers(user_id):
@@ -59,6 +64,25 @@ def test_create_user_happy_path(test_client):
     response = test_client.post("/user/signup", data=json.dumps(payload))
 
     assert response.status_code == HTTPStatus.CREATED
+
+
+def test_verify_user_happy_path(test_client):
+    verification_code = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
+    response = test_client.put(f"/user/verify/{verification_code}", headers=build_headers(103))
+    assert response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.parametrize(
+    "user_id,verification_code",
+    (
+        pytest.param(100, uuid4(), id="user already verified"),
+        pytest.param(100, VALID_VERIF_CODE, id="user already verified, valid code"),
+        pytest.param(103, uuid4(), id="user pending verification, invalid code"),
+    ),
+)
+def test_verify_user_failed(user_id, verification_code, test_client):
+    response = test_client.put(f"/user/verify/{verification_code}", headers=build_headers(user_id))
+    assert response.status_code == HTTPStatus.BAD_REQUEST
 
 
 def test_get_task(test_client):

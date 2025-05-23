@@ -28,7 +28,6 @@ def create_task(
     task_creation_params: TaskCreationRequestSchema,
     service: MatchService = Depends(get_service),
 ) -> dict:
-    print("ELOELO")
     user_id = get_user_id(request)
     task = service.create_task(
         user_id, description=task_creation_params.description, title=task_creation_params.title
