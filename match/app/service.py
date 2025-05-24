@@ -1,12 +1,15 @@
 from dataclasses import dataclass
 
-from match.domain.interfaces import MatchRepository
+from match.domain.interfaces import MatchRepository, MessageClient
 from match.domain.task import Task
-from match.domain.user import User
+from match.domain.user import User, create_user_verification_message
+
+VERIFICATION_URL = "localhost:8000/user/verify/"
 
 
 @dataclass
 class MatchService:
+    user_messaging_client: MessageClient
     repository: MatchRepository
 
     def create_user(self, first_name: str, last_name: str, email: str) -> User:
@@ -15,14 +18,16 @@ class MatchService:
             "last_name": last_name,
             "email": email,
             "is_verified": False,
-            "verification_code": None,
         }
         user = self.repository.create_user(user_data=user_data)
         return user
 
     def send_verification_request(self, user: User) -> None:
-        message = "hello"
-        print(f"SENDING: {message}")
+        if not user.verification_code:
+            raise Exception
+        verification_url = VERIFICATION_URL + user.verification_code
+        message = create_user_verification_message(user, verification_url)
+        self.user_messaging_client.send_message(message, user)
 
     def verify_user_with_code(self, user_id: int, verification_code: str) -> None:
         user = self.get_user_by_id(user_id)

@@ -3,7 +3,23 @@ from datetime import datetime
 from datetime import timezone as tz
 from enum import StrEnum
 
+from match.domain.exceptions import PermissionDenied
 from match.domain.user import User
+
+
+def require_users_verification(func):  # type: ignore
+    def wrapper(*args, **kwargs):  # type: ignore
+        user_args = [arg for arg in list(args) + list(kwargs.values()) if isinstance(arg, User)]
+        if len(user_args) == 0:
+            raise Exception
+        for user_arg in user_args:
+            if not user_arg.is_verified:
+                raise PermissionDenied(
+                    f"{user_arg} verification is required to perform this action."
+                )
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 class TaskStatus(StrEnum):
@@ -27,6 +43,7 @@ class Task:
     created_at: datetime = field(default_factory=lambda: datetime.now(tz.utc))
 
     @classmethod
+    @require_users_verification
     def create_task(cls, owner: User, title: str, description: str) -> "Task":
         return cls(
             id=None,
@@ -44,6 +61,7 @@ class Task:
         if user != self.owner:
             raise Exception("User is not an owner.")
 
+    @require_users_verification
     def join(self, helper: User) -> None:
         if self.status != TaskStatus.OPEN:
             raise Exception(f"Cannot join this Task with status {self.status}")
@@ -53,6 +71,7 @@ class Task:
         self.status = TaskStatus.PENDING
         self._post_task_update()
 
+    @require_users_verification
     def approve_helper(self, owner: User, helper_id: int) -> None:
         self._validate_owner(owner)
         if self.status != TaskStatus.PENDING or not self.helper:
@@ -62,6 +81,7 @@ class Task:
         self.status = TaskStatus.APPROVED
         self._post_task_update()
 
+    @require_users_verification
     def reject_helper(self, owner: User, helper_id: int) -> None:
         self._validate_owner(owner)
         if self.status not in (TaskStatus.PENDING, TaskStatus.APPROVED):
@@ -74,6 +94,7 @@ class Task:
         self.helper = None
         self._post_task_update()
 
+    @require_users_verification
     def report_succeeded(self, user: User) -> None:
         self._validate_owner(user)
         if self.status != TaskStatus.APPROVED:
@@ -81,6 +102,7 @@ class Task:
         self.status = TaskStatus.SUCCEEDED
         self._post_task_update()
 
+    @require_users_verification
     def report_failed(self, user: User) -> None:
         self._validate_owner(user)
         if self.status != TaskStatus.APPROVED:
@@ -88,6 +110,7 @@ class Task:
         self.status = TaskStatus.FAILED
         self._post_task_update()
 
+    @require_users_verification
     def close(self, user: User) -> None:
         self._validate_owner(user)
         if self.status == TaskStatus.CANCELLED:

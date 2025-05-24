@@ -94,19 +94,35 @@ def test_get_task(test_client):
     assert response.json() == expected
 
 
-def test_create_task(test_client):
+@pytest.mark.parametrize(
+    "user_id,expected_status",
+    (
+        pytest.param(100, HTTPStatus.CREATED, id="happy-path"),
+        pytest.param(102, HTTPStatus.FORBIDDEN, id="user-not-verified"),
+    ),
+)
+def test_create_task(test_client, user_id, expected_status):
     response = test_client.post(
-        "/task", json={"title": "title", "description": "description"}, headers=build_headers(100)
+        "/task",
+        json={"title": "title", "description": "description"},
+        headers=build_headers(user_id),
     )
 
-    assert response.status_code == HTTPStatus.CREATED
+    assert response.status_code == expected_status
 
 
-def test_join_task(test_client):
+@pytest.mark.parametrize(
+    "user_id,expected_status",
+    (
+        pytest.param(101, HTTPStatus.OK, id="happy-path"),
+        pytest.param(102, HTTPStatus.FORBIDDEN, id="user-not-verified"),
+    ),
+)
+def test_join_task(test_client, user_id, expected_status):
     new_task = test_client.post(
         "/task", json={"title": "title", "description": "description"}, headers=build_headers(100)
     ).json()
     response = test_client.put(
-        f"/task/{str(new_task['id'])}", params={"action": "join"}, headers=build_headers(101)
+        f"/task/{str(new_task['id'])}", params={"action": "join"}, headers=build_headers(user_id)
     )
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == expected_status
