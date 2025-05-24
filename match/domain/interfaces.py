@@ -25,3 +25,8 @@ class MatchRepository(abc.ABC):
 
     @abc.abstractmethod
     def task_update(self, task: Task) -> Task: ...
+
+
+class MessageClient(abc.ABC):
+    @abc.abstractmethod
+    def send_message(self, message: str, user: User) -> None: ...

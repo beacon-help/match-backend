@@ -35,7 +35,12 @@ class InMemoryMatchRepository(MatchRepository):
                 verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
             ),
             102: User(
-                101, "Gary", "Moveout", "gary@move.out", is_verified=False, verification_code=None
+                102,
+                "Gary",
+                "Moveout",
+                "gary@move.out",
+                is_verified=False,
+                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
             ),
             103: User(
                 101,
