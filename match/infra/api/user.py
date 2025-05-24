@@ -8,7 +8,6 @@ from match.bootstrap import get_service
 from match.domain.exceptions import UserVerificationError
 from match.infra.api.auth import get_user_id
 from match.infra.api.schemas import UserCreationRequestSchema, UserSchema
-from match.infra.repositories import InMemoryMatchRepository
 
 router = APIRouter()
 
