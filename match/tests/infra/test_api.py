@@ -17,6 +17,7 @@ def build_user_response(user_id=100):
         "first_name": "John",
         "last_name": "Johnson",
         "email": "john@johnson.com",
+        "is_verified": True,
     }
 
 
