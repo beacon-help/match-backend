@@ -1,44 +1,15 @@
-import logging
-import os
-
 import sentry_sdk
 import uvicorn
 from fastapi import Depends, FastAPI
 
-from dotenv import dotenv_values
-from match.app.service import MatchService
 from match.bootstrap import get_service
-from match.config import Config
+from match.config import Config, get_config
 from match.infra.api.health import router as health_api
 from match.infra.api.task import router as task_api
 from match.infra.api.user import router as user_api
-from match.infra.repositories import InMemoryMatchRepository
 
 USER_PREFIX = "/user"
 TASK_PREFIX = "/task"
-
-ENV_DIR = "dotenv/.env"
-
-
-def get_config(auto_convert: bool = True) -> Config:
-    raw_config = {}
-    ENV_VARS = ["ENV"]
-    for env_var in ENV_VARS:
-        try:
-            raw_config[env_var] = os.environ[env_var]
-        except KeyError:
-            logging.warning(f"Environment value {env_var} not found. Skipping.")
-
-    raw_config |= dotenv_values(ENV_DIR)  # type: ignore[arg-type]
-
-    if auto_convert:
-        for key, val in raw_config.items():
-            if val == "true":
-                raw_config[key] = True  # type: ignore[assignment]
-            elif val == "false":
-                raw_config[key] = False  # type: ignore[assignment]
-
-    return Config(**raw_config)  # type: ignore[arg-type]
 
 
 def configure_routing(app: FastAPI) -> None:
@@ -59,7 +30,7 @@ def create_app() -> FastAPI:
             # Set traces_sample_rate to 1.0 to capture 100%
             # of transactions for tracing.
             traces_sample_rate=1.0,
-            environment=config.ENV,
+            environment=str(config.ENV),
             _experiments={
                 # Set continuous_profiling_auto_start to True
                 # to automatically start the profiler on when

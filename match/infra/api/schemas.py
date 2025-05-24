@@ -15,6 +15,7 @@ class UserSchema(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
+    is_verified: bool
 
 
 class TaskStatus(Enum):

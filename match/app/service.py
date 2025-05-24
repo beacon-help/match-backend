@@ -1,24 +1,44 @@
 from dataclasses import dataclass
 
-from match.domain.interfaces import MatchRepository
+from match.domain.interfaces import MatchRepository, MessageClient
 from match.domain.task import Task
-from match.domain.user import User
+from match.domain.user import User, create_user_verification_message
+
+VERIFICATION_URL = "localhost:8000/user/verify/"
 
 
 @dataclass
 class MatchService:
+    user_messaging_client: MessageClient
     repository: MatchRepository
 
     def create_user(self, first_name: str, last_name: str, email: str) -> User:
-        user_data = {"first_name": first_name, "last_name": last_name, "email": email}
+        user_data = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "is_verified": False,
+        }
         user = self.repository.create_user(user_data=user_data)
         return user
+
+    def send_verification_request(self, user: User) -> None:
+        if not user.verification_code:
+            raise Exception
+        verification_url = VERIFICATION_URL + user.verification_code
+        message = create_user_verification_message(user, verification_url)
+        self.user_messaging_client.send_message(message, user)
+
+    def verify_user_with_code(self, user_id: int, verification_code: str) -> None:
+        user = self.get_user_by_id(user_id)
+        user = user.verify(verification_code)
+        self.repository.user_update(user)
 
     def get_user_by_id(self, user_id: int) -> User:
         return self.repository.get_user_by_id(user_id)
 
     def create_task(self, user_id: int, description: str, title: str) -> Task:
-        user = self.repository.get_user_by_id(user_id)
+        user = self.get_user_by_id(user_id)
         task = Task.create_task(owner=user, title=title, description=description)
         task = self.repository.create_task(task)
         return task
