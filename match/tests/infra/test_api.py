@@ -1,5 +1,10 @@
 import json
 from http import HTTPStatus
+from uuid import uuid4
+
+import pytest
+
+VALID_VERIF_CODE = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
 
 
 def build_headers(user_id):
@@ -12,6 +17,7 @@ def build_user_response(user_id=100):
         "first_name": "John",
         "last_name": "Johnson",
         "email": "john@johnson.com",
+        "is_verified": True,
     }
 
 
@@ -61,6 +67,25 @@ def test_create_user_happy_path(test_client):
     assert response.status_code == HTTPStatus.CREATED
 
 
+def test_verify_user_happy_path(test_client):
+    verification_code = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
+    response = test_client.put(f"/user/verify/{verification_code}", headers=build_headers(103))
+    assert response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.parametrize(
+    "user_id,verification_code",
+    (
+        pytest.param(100, uuid4(), id="user already verified"),
+        pytest.param(100, VALID_VERIF_CODE, id="user already verified, valid code"),
+        pytest.param(103, uuid4(), id="user pending verification, invalid code"),
+    ),
+)
+def test_verify_user_failed(user_id, verification_code, test_client):
+    response = test_client.put(f"/user/verify/{verification_code}", headers=build_headers(user_id))
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
 def test_get_task(test_client):
     task_id = 100
     expected = build_task_response(task_id=task_id)
@@ -70,19 +95,35 @@ def test_get_task(test_client):
     assert response.json() == expected
 
 
-def test_create_task(test_client):
+@pytest.mark.parametrize(
+    "user_id,expected_status",
+    (
+        pytest.param(100, HTTPStatus.CREATED, id="happy-path"),
+        pytest.param(102, HTTPStatus.FORBIDDEN, id="user-not-verified"),
+    ),
+)
+def test_create_task(test_client, user_id, expected_status):
     response = test_client.post(
-        "/task", json={"title": "title", "description": "description"}, headers=build_headers(100)
+        "/task",
+        json={"title": "title", "description": "description"},
+        headers=build_headers(user_id),
     )
 
-    assert response.status_code == HTTPStatus.CREATED
+    assert response.status_code == expected_status
 
 
-def test_join_task(test_client):
+@pytest.mark.parametrize(
+    "user_id,expected_status",
+    (
+        pytest.param(101, HTTPStatus.OK, id="happy-path"),
+        pytest.param(102, HTTPStatus.FORBIDDEN, id="user-not-verified"),
+    ),
+)
+def test_join_task(test_client, user_id, expected_status):
     new_task = test_client.post(
         "/task", json={"title": "title", "description": "description"}, headers=build_headers(100)
     ).json()
     response = test_client.put(
-        f"/task/{str(new_task['id'])}", params={"action": "join"}, headers=build_headers(101)
+        f"/task/{str(new_task['id'])}", params={"action": "join"}, headers=build_headers(user_id)
     )
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == expected_status
