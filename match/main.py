@@ -13,9 +13,13 @@ TASK_PREFIX = "/task"
 
 
 def configure_routing(app: FastAPI) -> None:
-    app.include_router(health_api)
-    app.include_router(user_api, prefix=USER_PREFIX, dependencies=[Depends(get_service)])
-    app.include_router(task_api, prefix=TASK_PREFIX, dependencies=[Depends(get_service)])
+    app.include_router(health_api, tags=["health"])
+    app.include_router(
+        user_api, prefix=USER_PREFIX, dependencies=[Depends(get_service)], tags=["user"]
+    )
+    app.include_router(
+        task_api, prefix=TASK_PREFIX, dependencies=[Depends(get_service)], tags=["task"]
+    )
 
 
 def create_app() -> FastAPI:

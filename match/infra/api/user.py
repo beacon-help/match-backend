@@ -28,7 +28,6 @@ def get_user(user_id: int, service: MatchService = Depends(get_service)) -> dict
 def create_user(
     user_creation_params: UserCreationRequestSchema, service: MatchService = Depends(get_service)
 ) -> dict:
-    user_data = user_creation_params.model_dump()
     user = service.create_user(**user_creation_params.dict())
     service.send_verification_request(user)
     return asdict(user)
