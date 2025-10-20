@@ -10,7 +10,6 @@ TODO: This is not a nice way of doing the dependency injections.
 
 config = get_config()
 
-# repository = InMemoryMatchRepository()
 repository = SQLiteRepository(session=Session())
 match_service = MatchService(
     user_messaging_client=FakeMessageClient(config=config), repository=repository
