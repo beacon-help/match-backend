@@ -19,6 +19,8 @@ class Environment(enum.Enum):
 class Config:
     ENV: Environment
 
+    DB_PATH: str
+
     SENTRY_ENABLED: bool
     SENTRY_DSN: str
 

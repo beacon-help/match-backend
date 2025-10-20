@@ -1,5 +1,6 @@
 SERVICE = match-backend
 FORMAT_TOOLS_DIR = format-tools
+name =
 
 build:
 	make down
@@ -29,3 +30,15 @@ format:
 	docker compose exec $(SERVICE) sh $(FORMAT_TOOLS_DIR)/isort.sh
 	docker compose exec $(SERVICE) sh $(FORMAT_TOOLS_DIR)/mypy.sh
 	docker compose exec $(SERVICE) sh $(FORMAT_TOOLS_DIR)/black.sh
+
+migration:
+	docker compose run $(SERVICE) uv run alembic revision -m=$(name) --autogenerate
+
+upgrade:
+	docker compose run $(SERVICE) uv run alembic upgrade head
+
+downgrade:
+	docker compose run $(SERVICE) uv run alembic downgrade -1
+
+show:
+	docker compose run $(SERVICE) uv run alembic show head

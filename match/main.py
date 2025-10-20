@@ -3,7 +3,9 @@ import uvicorn
 from fastapi import Depends, FastAPI
 
 from match.bootstrap import get_service
-from match.config import Config, get_config
+from match.config import Config, Environment, get_config
+from match.db import engine
+from match.infra import db_models
 from match.infra.api.health import router as health_api
 from match.infra.api.task import router as task_api
 from match.infra.api.user import router as user_api
@@ -42,8 +44,11 @@ def create_app() -> FastAPI:
                 "continuous_profiling_auto_start": True,
             },
         )
+    debug = config.ENV == Environment.DEV
 
-    app = FastAPI()
+    app = FastAPI(debug=debug)
+
+    db_models.Base.metadata.create_all(bind=engine)
     configure_routing(app)
     return app
 

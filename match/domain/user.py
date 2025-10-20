@@ -8,9 +8,12 @@ def generate_uuid_as_str() -> str:
     return str(uuid.uuid4())
 
 
+UserId = int
+
+
 @dataclass
 class User:
-    id: int
+    id: UserId
     first_name: str
     last_name: str
     email: str

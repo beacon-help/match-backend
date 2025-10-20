@@ -17,8 +17,8 @@ router = APIRouter()
 def task_to_dict(task: Task) -> dict[str, Any]:
 
     task_dict = asdict(task)
-    task_dict["owner_id"] = task.owner.id if task.owner else None
-    task_dict["helper_id"] = task.helper.id if task.helper else None
+    # task_dict["owner_id"] = task.owner_id
+    # task_dict["helper_id"] = task.helper_id
 
     return task_dict
 
@@ -80,8 +80,11 @@ def manage_task(
 
             case _:
                 raise HTTPException(status_code=HTTPStatus.BAD_REQUEST)
-    except PermissionDenied:
-        raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
+    except PermissionDenied as e:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail=f"Permission denied for user {user_id}.{str(e)}",
+        )
 
     return task_to_dict(task)
 
