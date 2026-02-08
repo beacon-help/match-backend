@@ -46,7 +46,14 @@ class Task:
     created_at: datetime = field(default_factory=lambda: datetime.now(tz.utc))
 
     @classmethod
-    def create_task(cls, owner: User, title: str, description: str, category: Category, location: Location | None) -> "Task":
+    def create_task(
+        cls,
+        owner: User,
+        title: str,
+        description: str,
+        category: Category,
+        location: Location | None,
+    ) -> "Task":
         return cls(
             id=None,
             status=TaskStatus.OPEN,

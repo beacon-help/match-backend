@@ -125,7 +125,12 @@ def test_get_task(test_client):
 def test_create_task(test_client, user_id, expected_status):
     response = test_client.post(
         "/task",
-        json={"title": "title", "description": "description", "category": "other", "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"}},
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
         headers=build_headers(user_id),
     )
 
@@ -141,7 +146,14 @@ def test_create_task(test_client, user_id, expected_status):
 )
 def test_join_task(test_client, user_id, expected_status):
     new_task = test_client.post(
-        "/task", json={"title": "title", "description": "description", "category": "other", "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"}}, headers=build_headers(100)
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
+        headers=build_headers(100),
     ).json()
     response = test_client.put(
         f"/task/{str(new_task['id'])}", params={"action": "join"}, headers=build_headers(user_id)

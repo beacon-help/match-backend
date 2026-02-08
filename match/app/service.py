@@ -38,22 +38,18 @@ class MatchService:
         return self.repository.get_user_by_id(user_id)
 
     def create_task(
-            self,
-            user_id: int,
-            description: str,
-            title: str,
-            category: str,
-            location_lon: float | None = None,
-            location_lat: float | None = None,
-            location_address: str | None = None
+        self,
+        user_id: int,
+        description: str,
+        title: str,
+        category: str,
+        location_lon: float | None = None,
+        location_lat: float | None = None,
+        location_address: str | None = None,
     ) -> Task:
         user = self.get_user_by_id(user_id)
         if location_lat is not None and location_lon is not None and location_address is not None:
-            location = Location(
-                lon=location_lon,
-                lat=location_lat,
-                address=location_address
-            )
+            location = Location(lon=location_lon, lat=location_lat, address=location_address)
         elif location_lat is None and location_lon is None and location_address is None:
             location = None
         else:
@@ -63,7 +59,13 @@ class MatchService:
             category_enum = Category(category)
         except ValueError:
             raise Exception("Incorrect category")
-        task = Task.create_task(owner=user, title=title, description=description, category=category_enum, location=location)
+        task = Task.create_task(
+            owner=user,
+            title=title,
+            description=description,
+            category=category_enum,
+            location=location,
+        )
         task = self.repository.create_task(task)
         return task
 

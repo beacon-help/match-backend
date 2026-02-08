@@ -34,3 +34,4 @@ uv add "dependency==version"
 - [ ] Task to have tasks setter instead of... doing nothing currently. See above.
 - [ ] Task to expect helper instead of helper_id in task_join()
 - [ ] Rename repository create_x() to save_x() methods.
+- [ ] Change location to a domain object and add more validation.

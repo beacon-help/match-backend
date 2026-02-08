@@ -37,7 +37,7 @@ def create_task(
             category=task_creation_params.category,
             location_lon=task_creation_params.location.lon,
             location_lat=task_creation_params.location.lat,
-            location_address=task_creation_params.location.address
+            location_address=task_creation_params.location.address,
         )
         return task_to_dict(task)
     except PermissionDenied:
@@ -124,6 +124,5 @@ def list_tasks_public() -> list:
             category=Category.OTHER,
             location=test_location,
         ),
-
     ]
     return [task_to_dict(t) for t in tasks]
