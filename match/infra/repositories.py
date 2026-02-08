@@ -8,7 +8,7 @@ from sqlalchemy.orm.session import Session as SQLAlchemySession
 
 from match.domain import exceptions
 from match.domain.interfaces import MatchRepository
-from match.domain.task import Task, TaskStatus
+from match.domain.task import Category, Location, Task, TaskStatus
 from match.domain.user import User
 from match.infra import db_models
 
@@ -55,6 +55,7 @@ class InMemoryMatchRepository(MatchRepository):
                 verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
             ),
         }
+        test_location = Location(lat=40.7128, lon=-74.0060, address="New York, NY")
         test_tasks = {
             100: Task(
                 id=100,
@@ -62,6 +63,8 @@ class InMemoryMatchRepository(MatchRepository):
                 description="please help me",
                 owner_id=100,
                 status=TaskStatus.OPEN,
+                category=Category.OTHER,
+                location=test_location,
                 updated_at=None,
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
@@ -72,6 +75,8 @@ class InMemoryMatchRepository(MatchRepository):
                 owner_id=100,
                 helper_id=101,
                 status=TaskStatus.PENDING,
+                category=Category.OTHER,
+                location=test_location,
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
@@ -82,6 +87,8 @@ class InMemoryMatchRepository(MatchRepository):
                 owner_id=100,
                 helper_id=101,
                 status=TaskStatus.APPROVED,
+                category=Category.OTHER,
+                location=test_location,
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
@@ -92,6 +99,8 @@ class InMemoryMatchRepository(MatchRepository):
                 owner_id=100,
                 helper_id=101,
                 status=TaskStatus.SUCCEEDED,
+                category=Category.OTHER,
+                location=test_location,
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
@@ -102,6 +111,8 @@ class InMemoryMatchRepository(MatchRepository):
                 owner_id=100,
                 helper_id=101,
                 status=TaskStatus.FAILED,
+                category=Category.OTHER,
+                location=test_location,
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
@@ -112,6 +123,8 @@ class InMemoryMatchRepository(MatchRepository):
                 owner_id=100,
                 helper_id=101,
                 status=TaskStatus.CANCELLED,
+                category=Category.OTHER,
+                location=test_location,
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
@@ -178,6 +191,15 @@ class SQLiteRepository(InMemoryMatchRepository):
         except KeyError as e:
             raise e
 
+        if obj.location_lat and obj.location_lon and obj.location_address:
+            location = Location(
+                lat=obj.location_lat,
+                lon=obj.location_lon,
+                address=obj.location_address,
+            )
+        else:
+            location = None
+
         return Task(
             id=obj.id,
             title=obj.title,
@@ -185,6 +207,8 @@ class SQLiteRepository(InMemoryMatchRepository):
             owner_id=obj.owner_id,
             helper_id=obj.helper_id,
             status=status,
+            category=Category(obj.category),
+            location=location,
             updated_at=obj.updated_at,
             created_at=obj.created_at,
         )
@@ -202,9 +226,13 @@ class SQLiteRepository(InMemoryMatchRepository):
             description=task.description,
             owner_id=task.owner_id,
             status=task.status.value,
+            category=task.category.value,
             helper_id=task.helper_id,
             updated_at=task.updated_at,
             created_at=task.created_at,
+            location_lat=task.location.lat if task.location else None,
+            location_lon=task.location.lon if task.location else None,
+            location_address=task.location.address if task.location else None,
         )
         self.session.add(db_model)
         self.session.commit()
@@ -229,6 +257,7 @@ class SQLiteRepository(InMemoryMatchRepository):
         db_obj.description = task.description
         db_obj.helper_id = task.helper_id
         db_obj.status = task.status
+        db_obj.category = task.category.value
         db_obj.updated_at = task.updated_at
 
         self.session.commit()

@@ -9,6 +9,7 @@ dependencies = [
     "isort==5.13.2",
     "mypy==1.14.1",
     "pydantic==2.10.5",
+    "pydantic-extra-types==2.10.6",
     "pytest==8.3.4",
     "python-dotenv==1.0.1",
     "sentry-sdk[fastapi]==2.22.0",

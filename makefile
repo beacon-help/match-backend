@@ -27,8 +27,8 @@ test:
 
 format:
 	make up
-	docker compose exec $(SERVICE) sh $(FORMAT_TOOLS_DIR)/isort.sh
 	docker compose exec $(SERVICE) sh $(FORMAT_TOOLS_DIR)/mypy.sh
+	docker compose exec $(SERVICE) sh $(FORMAT_TOOLS_DIR)/isort.sh
 	docker compose exec $(SERVICE) sh $(FORMAT_TOOLS_DIR)/black.sh
 
 migration:
@@ -42,3 +42,6 @@ downgrade:
 
 show:
 	docker compose run $(SERVICE) uv run alembic show head
+
+reset-db:
+	docker compose run $(SERVICE) rm -f /usr/src/app/data/app.db

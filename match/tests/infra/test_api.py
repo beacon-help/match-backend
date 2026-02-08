@@ -34,6 +34,12 @@ def build_task_response(owner_id=100, task_id=1, status="open", helper_id=None):
         "owner_id": owner_id,
         "helper_id": helper_id,
         "description": "please help me",
+        "category": "other",
+        "location": {
+            "lat": 39.4738,
+            "lon": 0.3756,
+            "address": "My address",
+        },
     }
 
 
@@ -93,8 +99,8 @@ def test_verify_user_failed(user_id, verification_code, test_client):
 def populate_db():
     session = Session()
     statement = """
-        INSERT OR REPLACE INTO tasks (id,title,description,status,owner_id,helper_id,updated_at,created_at)
-        VALUES (100, 'Help', 'please help me', 'open', 100, null, null, '2024-11-14T00:00:00Z');
+        INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
+        VALUES (100, 'Help', 'please help me', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
         """
     session.execute(text(statement))
     session.commit()
@@ -119,7 +125,7 @@ def test_get_task(test_client):
 def test_create_task(test_client, user_id, expected_status):
     response = test_client.post(
         "/task",
-        json={"title": "title", "description": "description"},
+        json={"title": "title", "description": "description", "category": "other", "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"}},
         headers=build_headers(user_id),
     )
 
@@ -135,7 +141,7 @@ def test_create_task(test_client, user_id, expected_status):
 )
 def test_join_task(test_client, user_id, expected_status):
     new_task = test_client.post(
-        "/task", json={"title": "title", "description": "description"}, headers=build_headers(100)
+        "/task", json={"title": "title", "description": "description", "category": "other", "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"}}, headers=build_headers(100)
     ).json()
     response = test_client.put(
         f"/task/{str(new_task['id'])}", params={"action": "join"}, headers=build_headers(user_id)

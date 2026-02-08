@@ -15,6 +15,23 @@ class TaskStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class Category(StrEnum):
+    TRANSPORT = "transport"
+    FOOD = "food"
+    ACCOMODATION = "accomodation"
+    CLOTHES = "clothes"
+    MAN_POWER = "man power"
+    DROP_DOWN_ITEM = "dropdown item"
+    OTHER = "other"
+
+
+@dataclass
+class Location:
+    lat: float
+    lon: float
+    address: str
+
+
 @dataclass
 class Task:
     id: int | None
@@ -22,12 +39,14 @@ class Task:
     description: str
     owner_id: UserId
     status: TaskStatus
+    category: Category
+    location: Location | None
     helper_id: UserId | None = None
     updated_at: datetime | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(tz.utc))
 
     @classmethod
-    def create_task(cls, owner: User, title: str, description: str) -> "Task":
+    def create_task(cls, owner: User, title: str, description: str, category: Category, location: Location | None) -> "Task":
         return cls(
             id=None,
             status=TaskStatus.OPEN,
@@ -35,6 +54,8 @@ class Task:
             helper_id=None,
             title=title,
             description=description,
+            category=category,
+            location=location,
         )
 
     def _post_task_update(self) -> None:

@@ -4,3 +4,4 @@
 .github
 .gitignore
 .mypy_cache
+.venv/

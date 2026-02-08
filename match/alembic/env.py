@@ -5,6 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from match.config import Config, get_config
 from match.db import Base
+from match.infra import db_models  # noqa: F401 - Import to register models with Base.metadata
 
 app_config: Config = get_config()
 
