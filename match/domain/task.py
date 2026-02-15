@@ -18,7 +18,7 @@ class TaskStatus(StrEnum):
 class Category(StrEnum):
     TRANSPORT = "transport"
     FOOD = "food"
-    ACCOMODATION = "accomodation"
+    ACCOMMODATION = "accommodation"
     CLOTHES = "clothes"
     MAN_POWER = "man power"
     DROP_DOWN_ITEM = "dropdown item"
