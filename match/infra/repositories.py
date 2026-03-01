@@ -151,6 +151,15 @@ class InMemoryMatchRepository(MatchRepository):
         except KeyError:
             raise exceptions.UserNotFound
 
+    def get_users_by_ids(self, user_ids: set[int]) -> dict[int, User]:
+        users: dict[int, User] = {}
+        for user_id in user_ids:
+            try:
+                users[user_id] = deepcopy(self.users[user_id])
+            except KeyError:
+                raise exceptions.UserNotFound
+        return users
+
     def create_task(self, task: Task) -> Task:
         task_id = 1
         while task_id in self.tasks:

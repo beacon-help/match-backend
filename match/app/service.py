@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from typing import Any
 
 from match.domain.interfaces import MatchRepository, MessageClient
 from match.domain.task import Category, Location, Task
@@ -74,6 +75,39 @@ class MatchService:
 
     def get_tasks(self) -> list[Task]:
         return self.repository.get_tasks()
+
+    @staticmethod
+    def _user_to_summary(user: User) -> dict[str, Any]:
+        return {"id": user.id, "first_name": user.first_name}
+
+    def _task_to_api_response(self, task: Task, users_by_id: dict[int, User]) -> dict[str, Any]:
+        task_dict = asdict(task)
+        owner = users_by_id[task.owner_id]
+        helper = users_by_id[task.helper_id] if task.helper_id is not None else None
+
+        task_dict.pop("owner_id")
+        task_dict.pop("helper_id")
+        task_dict["owner"] = self._user_to_summary(owner)
+        task_dict["helper"] = self._user_to_summary(helper) if helper else None
+        return task_dict
+
+    def format_task_response(self, task: Task) -> dict[str, Any]:
+        user_ids = {task.owner_id}
+        if task.helper_id is not None:
+            user_ids.add(task.helper_id)
+        users_by_id = self.repository.get_users_by_ids(user_ids)
+        return self._task_to_api_response(task, users_by_id)
+
+    def get_task_response(self, task_id: int) -> dict[str, Any]:
+        task = self.get_task_by_id(task_id)
+        return self.format_task_response(task)
+
+    def get_tasks_response(self) -> list[dict[str, Any]]:
+        tasks = self.get_tasks()
+        user_ids = {task.owner_id for task in tasks}
+        user_ids.update(task.helper_id for task in tasks if task.helper_id is not None)
+        users_by_id = self.repository.get_users_by_ids(user_ids)
+        return [self._task_to_api_response(task, users_by_id) for task in tasks]
 
     def task_join(self, task_id: int, user_id: int) -> Task:
         task = self.get_task_by_id(task_id)

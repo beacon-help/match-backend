@@ -25,14 +25,15 @@ def build_user_response(user_id=100):
 
 
 def build_task_response(owner_id=100, task_id=1, status="open", helper_id=None):
+    helper = {"id": helper_id, "first_name": "Adam"} if helper_id is not None else None
     return {
         "id": task_id,
         "title": "Help",
         "created_at": "2024-11-14T00:00:00Z",
         "updated_at": None,
         "status": status,
-        "owner_id": owner_id,
-        "helper_id": helper_id,
+        "owner": {"id": owner_id, "first_name": "John"},
+        "helper": helper,
         "description": "please help me",
         "category": "other",
         "location": {
@@ -113,6 +114,17 @@ def test_get_task(test_client):
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == expected
+
+
+def test_list_tasks(test_client):
+    response = test_client.get("/task")
+
+    assert response.status_code == HTTPStatus.OK
+    tasks = response.json()
+    assert len(tasks) > 0
+    assert "owner_id" not in tasks[0]
+    assert "helper_id" not in tasks[0]
+    assert tasks[0]["owner"] == {"id": 100, "first_name": "John"}
 
 
 @pytest.mark.parametrize(

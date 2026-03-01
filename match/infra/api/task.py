@@ -1,6 +1,5 @@
 from dataclasses import asdict
 from http import HTTPStatus
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -14,11 +13,13 @@ from match.infra.api.schemas import PublicTaskSchema, TaskCreationRequestSchema,
 router = APIRouter()
 
 
-def task_to_dict(task: Task) -> dict[str, Any]:
+def public_task_to_dict(task: Task) -> dict:
     task_dict = asdict(task)
-    # task_dict["owner_id"] = task.owner_id
-    # task_dict["helper_id"] = task.helper_id
-
+    task_dict.pop("owner_id")
+    task_dict.pop("helper_id")
+    task_dict.pop("created_at")
+    task_dict.pop("updated_at")
+    task_dict.pop("description")
     return task_dict
 
 
@@ -39,15 +40,14 @@ def create_task(
             location_lat=task_creation_params.location.lat,
             location_address=task_creation_params.location.address,
         )
-        return task_to_dict(task)
+        return service.format_task_response(task)
     except PermissionDenied:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
 
 
 @router.get("/{task_id}", response_model=TaskSchema)
 def get_task(task_id: int, service: MatchService = Depends(get_service)) -> dict:
-    task = service.get_task_by_id(task_id)
-    return task_to_dict(task)
+    return service.get_task_response(task_id)
 
 
 @router.put("/{task_id}", response_model=TaskSchema)
@@ -91,13 +91,12 @@ def manage_task(
             detail=f"Permission denied for user {user_id}.{str(e)}",
         )
 
-    return task_to_dict(task)
+    return service.format_task_response(task)
 
 
 @router.get("/", response_model=list[TaskSchema])
 def list_tasks(service: MatchService = Depends(get_service)) -> list:
-    tasks = service.get_tasks()
-    return [task_to_dict(t) for t in tasks]
+    return service.get_tasks_response()
 
 
 @router.get("/public", response_model=list[PublicTaskSchema])
@@ -125,4 +124,4 @@ def list_tasks_public() -> list:
             location=test_location,
         ),
     ]
-    return [task_to_dict(t) for t in tasks]
+    return [public_task_to_dict(task) for task in tasks]

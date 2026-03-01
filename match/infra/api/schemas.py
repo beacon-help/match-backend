@@ -53,14 +53,19 @@ class PublicTaskSchema(BaseModel):
     category: str
 
 
+class TaskUserSchema(BaseModel):
+    id: int
+    first_name: str
+
+
 class TaskSchema(BaseModel):
     id: int
     title: str
     created_at: datetime
     updated_at: datetime | None
     status: TaskStatus
-    owner_id: int
-    helper_id: int | None
+    owner: TaskUserSchema
+    helper: TaskUserSchema | None
     description: str
     location: Location
     category: str
