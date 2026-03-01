@@ -8,7 +8,12 @@ from match.bootstrap import get_service
 from match.domain.exceptions import PermissionDenied
 from match.domain.task import Category, Location, Task, TaskStatus
 from match.infra.api.auth import get_user_id
-from match.infra.api.schemas import PublicTaskSchema, TaskCreationRequestSchema, TaskSchema
+from match.infra.api.schemas import (
+    PublicTaskSchema,
+    TaskCreationRequestSchema,
+    TaskLocationSchema,
+    TaskSchema,
+)
 
 router = APIRouter()
 
@@ -43,11 +48,6 @@ def create_task(
         return service.format_task_response(task)
     except PermissionDenied:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
-
-
-@router.get("/{task_id}", response_model=TaskSchema)
-def get_task(task_id: int, service: MatchService = Depends(get_service)) -> dict:
-    return service.get_task_response(task_id)
 
 
 @router.put("/{task_id}", response_model=TaskSchema)
@@ -99,6 +99,11 @@ def list_tasks(service: MatchService = Depends(get_service)) -> list:
     return service.get_tasks_response()
 
 
+@router.get("/locations", response_model=list[TaskLocationSchema])
+def list_task_locations(service: MatchService = Depends(get_service)) -> list:
+    return service.get_task_locations()
+
+
 @router.get("/public", response_model=list[PublicTaskSchema])
 def list_tasks_public() -> list:
     test_location = Location(lat=40.7128, lon=-74.0060, address="New York, NY")
@@ -125,3 +130,8 @@ def list_tasks_public() -> list:
         ),
     ]
     return [public_task_to_dict(task) for task in tasks]
+
+
+@router.get("/{task_id}", response_model=TaskSchema)
+def get_task(task_id: int, service: MatchService = Depends(get_service)) -> dict:
+    return service.get_task_response(task_id)

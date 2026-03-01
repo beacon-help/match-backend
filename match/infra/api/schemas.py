@@ -69,3 +69,8 @@ class TaskSchema(BaseModel):
     description: str
     location: Location
     category: str
+
+
+class TaskLocationSchema(BaseModel):
+    id: int
+    location: Location

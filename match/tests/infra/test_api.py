@@ -99,6 +99,8 @@ def test_verify_user_failed(user_id, verification_code, test_client):
 @pytest.fixture(autouse=True)
 def populate_db():
     session = Session()
+    clear_statement = "DELETE FROM tasks;"
+    session.execute(text(clear_statement))
     statement = """
         INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
         VALUES (100, 'Help', 'please help me', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
@@ -125,6 +127,25 @@ def test_list_tasks(test_client):
     assert "owner_id" not in tasks[0]
     assert "helper_id" not in tasks[0]
     assert tasks[0]["owner"] == {"id": 100, "first_name": "John"}
+
+
+def test_list_task_locations(test_client):
+    session = Session()
+    statement = """
+        INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
+        VALUES (9999, 'No location task', 'location should be missing', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', null, null, null);
+        """
+    session.execute(text(statement))
+    session.commit()
+
+    response = test_client.get("/task/locations")
+
+    assert response.status_code == HTTPStatus.OK
+    tasks = response.json()
+    assert len(tasks) > 0
+    assert 9999 not in {task["id"] for task in tasks}
+    assert set(tasks[0].keys()) == {"id", "location"}
+    assert set(tasks[0]["location"].keys()) == {"lat", "lon", "address"}
 
 
 @pytest.mark.parametrize(

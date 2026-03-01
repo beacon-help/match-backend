@@ -109,6 +109,10 @@ class MatchService:
         users_by_id = self.repository.get_users_by_ids(user_ids)
         return [self._task_to_api_response(task, users_by_id) for task in tasks]
 
+    def get_task_locations(self) -> list[dict[str, Any]]:
+        tasks = self.get_tasks()
+        return [{"id": task.id, "location": task.location} for task in tasks if task.location is not None]
+
     def task_join(self, task_id: int, user_id: int) -> Task:
         task = self.get_task_by_id(task_id)
         user = self.get_user_by_id(user_id)
