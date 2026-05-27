@@ -1,6 +1,7 @@
 import pytest
 
 from match.domain.user import User
+from match.domain.task import TaskStatus
 from match.infra.repositories import InMemoryMatchRepository
 
 
@@ -31,3 +32,21 @@ def test_create_user(in_memory_user_repository):
         verification_code=None,
     )
     assert len(repository.users) == 1
+
+
+def test_get_tasks_can_filter_by_status():
+    repository = InMemoryMatchRepository()
+
+    tasks = repository.get_tasks({"status": TaskStatus.PENDING})
+
+    assert len(tasks) == 1
+    assert tasks[0].status == TaskStatus.PENDING
+
+
+def test_get_tasks_can_filter_by_null_helper_id():
+    repository = InMemoryMatchRepository()
+
+    tasks = repository.get_tasks({"helper_id": None})
+
+    assert len(tasks) == 1
+    assert tasks[0].helper_id is None

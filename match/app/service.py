@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from match.domain.interfaces import MatchRepository, MessageClient
+from match.domain.interfaces import MatchRepository, MessageClient, TaskFilter
 from match.domain.task import Category, Location, Task
 from match.domain.user import User, create_user_verification_message
 
@@ -73,8 +73,8 @@ class MatchService:
     def get_task_by_id(self, task_id: int) -> Task:
         return self.repository.get_task_by_id(task_id)
 
-    def get_tasks(self) -> list[Task]:
-        return self.repository.get_tasks()
+    def get_tasks(self, filters: TaskFilter | None = None) -> list[Task]:
+        return self.repository.get_tasks(filters=filters)
 
     @staticmethod
     def _user_to_summary(user: User) -> dict[str, Any]:
@@ -91,6 +91,7 @@ class MatchService:
         task_dict["helper"] = self._user_to_summary(helper) if helper else None
         return task_dict
 
+    # TODO: this goes to infra
     def format_task_response(self, task: Task) -> dict[str, Any]:
         user_ids = {task.owner_id}
         if task.helper_id is not None:
@@ -98,20 +99,31 @@ class MatchService:
         users_by_id = self.repository.get_users_by_ids(user_ids)
         return self._task_to_api_response(task, users_by_id)
 
+    # TODO: this is bad
     def get_task_response(self, task_id: int) -> dict[str, Any]:
         task = self.get_task_by_id(task_id)
         return self.format_task_response(task)
 
-    def get_tasks_response(self) -> list[dict[str, Any]]:
-        tasks = self.get_tasks()
+    def get_tasks_response(
+        self,
+        filters: TaskFilter | None = None,
+    ) -> list[dict[str, Any]]:
+        tasks = self.get_tasks(filters=filters)
         user_ids = {task.owner_id for task in tasks}
         user_ids.update(task.helper_id for task in tasks if task.helper_id is not None)
         users_by_id = self.repository.get_users_by_ids(user_ids)
         return [self._task_to_api_response(task, users_by_id) for task in tasks]
 
-    def get_task_locations(self) -> list[dict[str, Any]]:
-        tasks = self.get_tasks()
-        return [{"id": task.id, "location": task.location} for task in tasks if task.location is not None]
+    def get_task_locations(
+        self,
+        filters: TaskFilter | None = None,
+    ) -> list[dict[str, Any]]:
+        tasks = self.get_tasks(filters=filters)
+        return [
+            {"id": task.id, "location": task.location}
+            for task in tasks
+            if task.location is not None
+        ]
 
     def task_join(self, task_id: int, user_id: int) -> Task:
         task = self.get_task_by_id(task_id)

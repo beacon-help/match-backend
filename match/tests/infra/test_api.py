@@ -129,6 +129,53 @@ def test_list_tasks(test_client):
     assert tasks[0]["owner"] == {"id": 100, "first_name": "John"}
 
 
+def test_list_tasks_filtered_by_status(test_client):
+    session = Session()
+    statement = """
+        INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
+        VALUES (101, 'Another task', 'different status', 'pending', 'food', 101, 101, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
+        """
+    session.execute(text(statement))
+    session.commit()
+
+    response = test_client.get("/task", params={"status": "pending"})
+
+    assert response.status_code == HTTPStatus.OK
+    tasks = response.json()
+    assert len(tasks) == 1
+    assert tasks[0]["status"] == "pending"
+    assert tasks[0]["id"] == 101
+
+
+def test_list_tasks_filtered_by_null_helper_id(test_client):
+    response = test_client.get("/task", params={"helper_id": "null"})
+
+    assert response.status_code == HTTPStatus.OK
+    tasks = response.json()
+    assert len(tasks) > 0
+    assert all(task["helper"] is None for task in tasks)
+
+
+def test_get_my_tasks(test_client):
+    session = Session()
+    statement = """
+        INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
+        VALUES
+            (100, 'Help', 'please help me', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address'),
+            (101, 'Other task', 'belongs to someone else', 'pending', 'other', 101, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
+        """
+    session.execute(text(statement))
+    session.commit()
+
+    response = test_client.get("/task/my-tasks", headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.OK
+    tasks = response.json()
+    assert len(tasks) == 1
+    # assert tasks[0]["owner"] == {"id": 100, "first_name": "John"}
+    assert tasks[0]["id"] == 100
+
+
 def test_list_task_locations(test_client):
     session = Session()
     statement = """

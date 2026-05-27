@@ -7,7 +7,7 @@ from sqlalchemy import orm, select
 from sqlalchemy.orm.session import Session as SQLAlchemySession
 
 from match.domain import exceptions
-from match.domain.interfaces import MatchRepository
+from match.domain.interfaces import MatchRepository, TaskFilter
 from match.domain.task import Category, Location, Task, TaskStatus
 from match.domain.user import User
 from match.infra import db_models
@@ -174,8 +174,18 @@ class InMemoryMatchRepository(MatchRepository):
         except KeyError:
             raise exceptions.TaskNotFound
 
-    def get_tasks(self) -> list[Task]:
-        return list(deepcopy(t) for t in self.tasks.values())
+    def get_tasks(self, filters: TaskFilter | None = None) -> list[Task]:
+        filters = filters or {}
+        tasks = list(deepcopy(t) for t in self.tasks.values())
+        if "status" in filters:
+            tasks = [task for task in tasks if task.status == filters["status"]]
+        if "category" in filters:
+            tasks = [task for task in tasks if task.category == filters["category"]]
+        if "owner_id" in filters:
+            tasks = [task for task in tasks if task.owner_id == filters["owner_id"]]
+        if "helper_id" in filters:
+            tasks = [task for task in tasks if task.helper_id == filters["helper_id"]]
+        return tasks
 
     def task_update(self, task: Task) -> Task:
         if task.id is None:
@@ -252,8 +262,17 @@ class SQLiteRepository(InMemoryMatchRepository):
         db_obj = self._get_task_by_id(task_id)
         return self._task_to_domain(db_obj)
 
-    def get_tasks(self) -> list[Task]:
+    def get_tasks(self, filters: TaskFilter | None = None) -> list[Task]:
+        filters = filters or {}
         statement = select(db_models.Task)
+        if "status" in filters:
+            statement = statement.filter_by(status=filters["status"].value)
+        if "category" in filters:
+            statement = statement.filter_by(category=filters["category"].value)
+        if "owner_id" in filters:
+            statement = statement.filter_by(owner_id=filters["owner_id"])
+        if "helper_id" in filters:
+            statement = statement.filter_by(helper_id=filters["helper_id"])
         db_objs = self.session.scalars(statement).all()
         return [self._task_to_domain(obj) for obj in db_objs]
 

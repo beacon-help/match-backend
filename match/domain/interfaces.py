@@ -1,7 +1,15 @@
 import abc
+from typing import TypedDict
 
-from match.domain.task import Task
+from match.domain.task import Category, Task, TaskStatus
 from match.domain.user import User
+
+
+class TaskFilter(TypedDict, total=False):
+    status: TaskStatus
+    category: Category
+    owner_id: int
+    helper_id: int | None
 
 
 class MatchRepository(abc.ABC):
@@ -24,7 +32,7 @@ class MatchRepository(abc.ABC):
     def get_task_by_id(self, task_id: int) -> Task: ...
 
     @abc.abstractmethod
-    def get_tasks(self) -> list[Task]: ...
+    def get_tasks(self, filters: TaskFilter | None = None) -> list[Task]: ...
 
     @abc.abstractmethod
     def task_update(self, task: Task) -> Task: ...

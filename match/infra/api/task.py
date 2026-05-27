@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import PermissionDenied
+from match.domain.interfaces import TaskFilter
 from match.domain.task import Category, Location, Task, TaskStatus
 from match.infra.api.auth import get_user_id
 from match.infra.api.schemas import (
@@ -16,6 +17,28 @@ from match.infra.api.schemas import (
 )
 
 router = APIRouter()
+
+
+def _task_filters_from_request(request: Request) -> TaskFilter:
+    query_params = request.query_params
+    filters: TaskFilter = {}
+
+    try:
+        if "status" in query_params:
+            filters["status"] = TaskStatus(query_params["status"])
+        if "category" in query_params:
+            filters["category"] = Category(query_params["category"])
+        if "owner_id" in query_params:
+            filters["owner_id"] = int(query_params["owner_id"])
+        if "helper_id" in query_params:
+            helper_id = query_params["helper_id"]
+            filters["helper_id"] = None if helper_id == "null" else int(helper_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Invalid task filter."
+        ) from exc
+
+    return filters
 
 
 def public_task_to_dict(task: Task) -> dict:
@@ -95,13 +118,19 @@ def manage_task(
 
 
 @router.get("/", response_model=list[TaskSchema])
-def list_tasks(service: MatchService = Depends(get_service)) -> list:
-    return service.get_tasks_response()
+def list_tasks(
+    request: Request,
+    service: MatchService = Depends(get_service),
+) -> list:
+    return service.get_tasks_response(filters=_task_filters_from_request(request))
 
 
 @router.get("/locations", response_model=list[TaskLocationSchema])
-def list_task_locations(service: MatchService = Depends(get_service)) -> list:
-    return service.get_task_locations()
+def list_task_locations(
+    request: Request,
+    service: MatchService = Depends(get_service),
+) -> list:
+    return service.get_task_locations(filters=_task_filters_from_request(request))
 
 
 @router.get("/public", response_model=list[PublicTaskSchema])
@@ -129,6 +158,14 @@ def list_tasks_public() -> list:
             location=test_location,
         ),
     ]
+    return [public_task_to_dict(task) for task in tasks]
+
+
+# TODO not a public task schema
+@router.get("/my-tasks", response_model=list[PublicTaskSchema])
+def get_my_tasks(request: Request, service: MatchService = Depends(get_service)) -> list[dict]:
+    user_id = get_user_id(request)
+    tasks = service.get_tasks(filters={"owner_id": user_id})
     return [public_task_to_dict(task) for task in tasks]
 
 
