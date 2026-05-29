@@ -161,12 +161,10 @@ def list_tasks_public() -> list:
     return [public_task_to_dict(task) for task in tasks]
 
 
-# TODO not a public task schema
-@router.get("/my-tasks", response_model=list[PublicTaskSchema])
+@router.get("/my-tasks", response_model=list[TaskSchema])
 def get_my_tasks(request: Request, service: MatchService = Depends(get_service)) -> list[dict]:
     user_id = get_user_id(request)
-    tasks = service.get_tasks(filters={"owner_id": user_id})
-    return [public_task_to_dict(task) for task in tasks]
+    return service.get_tasks_response(filters={"owner_id": user_id})
 
 
 @router.get("/{task_id}", response_model=TaskSchema)

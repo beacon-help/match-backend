@@ -171,9 +171,8 @@ def test_get_my_tasks(test_client):
 
     assert response.status_code == HTTPStatus.OK
     tasks = response.json()
-    assert len(tasks) == 1
-    # assert tasks[0]["owner"] == {"id": 100, "first_name": "John"}
-    assert tasks[0]["id"] == 100
+    assert len(tasks) > 0
+    assert tasks[0] == build_task_response(task_id=100)
 
 
 def test_list_task_locations(test_client):
