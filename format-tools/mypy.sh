@@ -1,2 +1,2 @@
 #!/bin/bash
-uv run mypy . $@
+uv run mypy ./match $@

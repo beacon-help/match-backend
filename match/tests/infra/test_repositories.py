@@ -1,7 +1,7 @@
 import pytest
 
-from match.domain.user import User
 from match.domain.task import TaskStatus
+from match.domain.user import User
 from match.infra.repositories import InMemoryMatchRepository
 
 

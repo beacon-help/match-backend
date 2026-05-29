@@ -1,2 +1,2 @@
 #!/bin/bash
-uv run isort . $@
+uv run isort ./match $@
