@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, Iterable
 
 from match.domain.interfaces import MatchRepository, MessageClient, TaskFilter
 from match.domain.task import Category, Location, Task
@@ -13,12 +13,15 @@ class MatchService:
     user_messaging_client: MessageClient
     repository: MatchRepository
 
-    def create_user(self, first_name: str, last_name: str, email: str) -> User:
+    def create_user(
+        self, first_name: str, last_name: str, email: str, properties: Iterable[str]
+    ) -> User:
         user_data = {
             "first_name": first_name,
             "last_name": last_name,
             "email": email,
             "is_verified": False,
+            "properties": properties,
         }
         user = self.repository.create_user(user_data=user_data)
         return user

@@ -1,5 +1,6 @@
 import uuid
 from dataclasses import dataclass, field
+from enum import Enum
 
 from match.domain.exceptions import UserNotPendingVerification, UserVerificationCodeInvalid
 
@@ -17,6 +18,7 @@ class User:
     first_name: str
     last_name: str
     email: str
+    properties: list[str] = field(default_factory=list)
 
     is_verified: bool = field(default=False)
     verification_code: str = field(default_factory=generate_uuid_as_str)
@@ -39,3 +41,10 @@ class User:
 
 def create_user_verification_message(user: User, verification_url: str) -> str:
     return f"""Hello, {user.first_name}, click: {verification_url} """
+
+
+class VolunteerProperties(Enum):
+    has_car = "HAS_CAR"
+    can_host = "CAN_HOST"
+    can_work_physical = "CAN_WORK_PHYSICAL"
+    has_tools = "HAS_TOOLS"

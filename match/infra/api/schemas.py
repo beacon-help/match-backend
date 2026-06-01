@@ -1,14 +1,18 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from pydantic_extra_types.coordinate import Latitude, Longitude
+
+from match.domain.user import VolunteerProperties
 
 
 class UserCreationRequestSchema(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
+
+    properties: list[VolunteerProperties] = Field(default_factory=list)
 
 
 class UserSchema(BaseModel):

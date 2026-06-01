@@ -66,12 +66,29 @@ def test_get_user_by_id(test_client):
     assert response.json() == expected
 
 
-def test_create_user_happy_path(test_client):
-    payload = {
-        "first_name": "Arnold",
-        "last_name": "Adams",
-        "email": "email@example.com",
-    }
+@pytest.mark.parametrize(
+    "payload",
+    (
+        pytest.param(
+            {
+                "first_name": "Arnold",
+                "last_name": "Adams",
+                "email": "email@example.com",
+            },
+            id="without-properties",
+        ),
+        pytest.param(
+            {
+                "first_name": "John",
+                "last_name": "Johnson",
+                "email": "john@johnson.com",
+                "properties": ["HAS_CAR"],
+            },
+            id="has-property",
+        ),
+    ),
+)
+def test_create_user_happy_path(test_client, payload):
     response = test_client.post("/user/signup", data=json.dumps(payload))
 
     assert response.status_code == HTTPStatus.CREATED
