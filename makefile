@@ -1,6 +1,7 @@
 SERVICE = match-backend
 FORMAT_TOOLS_DIR = format-tools
 name =
+OPENAPI_OUTPUT = ./openapi_specs.json
 
 build:
 	make down
@@ -45,3 +46,7 @@ show:
 
 reset-db:
 	docker compose run $(SERVICE) rm -f /usr/src/app/data/app.db
+
+
+gen-specs:
+	docker compose run $(SERVICE) uv run python scripts/generate_openapi.py --output $(OPENAPI_OUTPUT)
