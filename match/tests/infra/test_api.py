@@ -6,12 +6,9 @@ import pytest
 from sqlalchemy import text
 
 from match.db import Session
+from match.tests.conftest import build_headers
 
 VALID_VERIF_CODE = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
-
-
-def build_headers(user_id):
-    return {"x-user": str(user_id)}
 
 
 def build_user_response(user_id=100):

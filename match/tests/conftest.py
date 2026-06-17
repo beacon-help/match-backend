@@ -14,3 +14,7 @@ def test_client():
 @pytest.fixture(scope="session")
 def config():
     return get_config()
+
+
+def build_headers(user_id):
+    return {"x-user": str(user_id)}

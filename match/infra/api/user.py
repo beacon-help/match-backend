@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, HTTPException
 
 from match.app.service import MatchService
 from match.bootstrap import get_service
@@ -16,6 +16,8 @@ router = APIRouter()
 def get_me(request: Request, service: MatchService = Depends(get_service)) -> dict:
     user_id = get_user_id(request)
     user = service.get_user_by_id(user_id)
+    if not user.is_verified:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
     return asdict(user)
 
 
