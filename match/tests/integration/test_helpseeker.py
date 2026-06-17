@@ -1,9 +1,8 @@
 import json
-
-import pytest
+from http import HTTPStatus
 from unittest.mock import patch
 
-from http import HTTPStatus
+import pytest
 
 from match.tests.conftest import build_headers
 
@@ -11,7 +10,6 @@ from match.tests.conftest import build_headers
 class TestCaseHelpSeekerPath:
     _USER_SIGNUP_URL = "/user/signup"
     _USER_ME_URL = "/user/me"
-
 
     @patch("match.domain.user.uuid.uuid4")
     def test_helpseeker(self, mock_uuid4, test_client):
@@ -23,7 +21,9 @@ class TestCaseHelpSeekerPath:
             "email": "maria@example.com",
         }
 
-        user_created_response = test_client.post(self._USER_SIGNUP_URL, data=json.dumps(signup_payload))
+        user_created_response = test_client.post(
+            self._USER_SIGNUP_URL, data=json.dumps(signup_payload)
+        )
 
         assert user_created_response.status_code == HTTPStatus.CREATED
         user_id = user_created_response.json()["id"]
