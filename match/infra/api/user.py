@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, Request, Response, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from match.app.service import MatchService
 from match.bootstrap import get_service
