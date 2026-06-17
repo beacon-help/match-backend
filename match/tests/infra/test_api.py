@@ -63,30 +63,45 @@ def test_get_user_by_id(test_client):
     assert response.json() == expected
 
 
+def test_create_helpseeker_user_rejects_properties(test_client):
+    payload = {
+        "first_name": "Arnold",
+        "last_name": "Adams",
+        "email": "email@example.com",
+        "properties": ["HAS_CAR"],
+    }
+
+    response = test_client.post("/user/signup/helpseeker", data=json.dumps(payload))
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
 @pytest.mark.parametrize(
-    "payload",
+    "endpoint,payload",
     (
         pytest.param(
+            "/user/signup/helpseeker",
             {
                 "first_name": "Arnold",
                 "last_name": "Adams",
                 "email": "email@example.com",
             },
-            id="without-properties",
+            id="helpseeker",
         ),
         pytest.param(
+            "/user/signup/volunteer",
             {
                 "first_name": "John",
                 "last_name": "Johnson",
                 "email": "john@johnson.com",
                 "properties": ["HAS_CAR"],
             },
-            id="has-property",
+            id="volunteer",
         ),
     ),
 )
-def test_create_user_happy_path(test_client, payload):
-    response = test_client.post("/user/signup", data=json.dumps(payload))
+def test_create_user_happy_path(test_client, endpoint, payload):
+    response = test_client.post(endpoint, data=json.dumps(payload))
 
     assert response.status_code == HTTPStatus.CREATED
 

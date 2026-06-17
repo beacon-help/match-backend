@@ -7,7 +7,11 @@ from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import UserVerificationError
 from match.infra.api.auth import get_user_id
-from match.infra.api.schemas import UserCreationRequestSchema, UserSchema
+from match.infra.api.schemas import (
+    HelpseekerCreationRequestSchema,
+    UserSchema,
+    VolunteerCreationRequestSchema,
+)
 
 router = APIRouter()
 
@@ -26,11 +30,22 @@ def get_user(user_id: int, service: MatchService = Depends(get_service)) -> dict
     return asdict(service.get_user_by_id(user_id))
 
 
-@router.post("/signup", response_model=UserSchema, status_code=HTTPStatus.CREATED)
-def create_user(
-    user_creation_params: UserCreationRequestSchema, service: MatchService = Depends(get_service)
+@router.post("/signup/helpseeker", response_model=UserSchema, status_code=HTTPStatus.CREATED)
+def create_helpseeker_user(
+    user_creation_params: HelpseekerCreationRequestSchema,
+    service: MatchService = Depends(get_service),
 ) -> dict:
-    user = service.create_user(**user_creation_params.dict())
+    user = service.create_user(**user_creation_params.model_dump())
+    service.send_verification_request(user)
+    return asdict(user)
+
+
+@router.post("/signup/volunteer", response_model=UserSchema, status_code=HTTPStatus.CREATED)
+def create_volunteer_user(
+    user_creation_params: VolunteerCreationRequestSchema,
+    service: MatchService = Depends(get_service),
+) -> dict:
+    user = service.create_user(**user_creation_params.model_dump())
     service.send_verification_request(user)
     return asdict(user)
 

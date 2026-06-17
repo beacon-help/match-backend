@@ -8,11 +8,11 @@ from match.tests.conftest import build_headers
 
 
 class TestCaseUserSignupPath:
-    _USER_SIGNUP_URL = "/user/signup"
+    _USER_SIGNUP_BASE_URL = "/user/signup"
     _USER_ME_URL = "/user/me"
 
     @pytest.mark.parametrize(
-        "signup_payload",
+        "signup_payload,url_suffix",
         (
             pytest.param(
                 {
@@ -20,6 +20,7 @@ class TestCaseUserSignupPath:
                     "last_name": "De La Luz",
                     "email": "maria@example.com",
                 },
+                "/helpseeker",
                 id="helpseeker",
             ),
             pytest.param(
@@ -29,17 +30,18 @@ class TestCaseUserSignupPath:
                     "email": "maria.volunteer@example.com",
                     "properties": ["HAS_CAR", "CAN_HOST"],
                 },
+                "/volunteer",
                 id="volunteer",
             ),
         ),
     )
     @patch("match.domain.user.uuid.uuid4")
-    def test_user_signup_and_verify(self, mock_uuid4, test_client, signup_payload):
+    def test_user_signup_and_verify(self, mock_uuid4, test_client, signup_payload, url_suffix):
         verification_code = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
         mock_uuid4.return_value = verification_code
 
         user_created_response = test_client.post(
-            self._USER_SIGNUP_URL, data=json.dumps(signup_payload)
+            self._USER_SIGNUP_BASE_URL + url_suffix, data=json.dumps(signup_payload)
         )
 
         assert user_created_response.status_code == HTTPStatus.CREATED

@@ -13,18 +13,27 @@ class MatchService:
     user_messaging_client: MessageClient
     repository: MatchRepository
 
-    def create_user(
-        self, first_name: str, last_name: str, email: str, properties: Iterable[str]
+    def _create_user(
+        self, first_name: str, last_name: str, email: str, properties: Iterable[Any]
     ) -> User:
         user_data = {
             "first_name": first_name,
             "last_name": last_name,
             "email": email,
             "is_verified": False,
-            "properties": properties,
+            "properties": [getattr(property_, "value", property_) for property_ in properties],
         }
         user = self.repository.create_user(user_data=user_data)
         return user
+
+    def create_user(
+        self,
+        first_name: str,
+        last_name: str,
+        email: str,
+        properties: Iterable[Any] = (),
+    ) -> User:
+        return self._create_user(first_name, last_name, email, properties=properties)
 
     def send_verification_request(self, user: User) -> None:
         if not user.verification_code:
