@@ -1,18 +1,26 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from pydantic_extra_types.coordinate import Latitude, Longitude
 
 from match.domain.user import VolunteerProperties
 
 
-class UserCreationRequestSchema(BaseModel):
+class UserCreationBaseSchema(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
 
-    properties: list[VolunteerProperties] = Field(default_factory=list)
+
+class HelpseekerCreationRequestSchema(UserCreationBaseSchema):
+    model_config = ConfigDict(extra="forbid")
+
+
+class VolunteerCreationRequestSchema(UserCreationBaseSchema):
+    model_config = ConfigDict(extra="forbid")
+
+    properties: list[VolunteerProperties]
 
 
 class UserSchema(BaseModel):
