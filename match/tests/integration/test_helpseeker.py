@@ -3,6 +3,7 @@ from http import HTTPStatus
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import text
 
 from match.tests.conftest import build_headers
 
@@ -58,3 +59,48 @@ class TestCaseUserSignupPath:
 
         me_response_2 = test_client.get(self._USER_ME_URL, headers=headers)
         assert me_response_2.status_code == HTTPStatus.OK
+
+
+# class TestUserTaskInteractions:
+#     def test_user_views_tasks(self, test_client, database):
+#         response = test_client.get("/task/my-tasks", headers=build_headers(1))
+#
+#         assert response.status_code == HTTPStatus.OK
+#         assert response.json() == []
+#
+#         database.execute(
+#             text(
+#                 """
+#                 INSERT OR REPLACE INTO tasks (
+#                     id, title, description, status, category, owner_id, helper_id,
+#                     updated_at, created_at, location_lat, location_lon, location_address
+#                 ) VALUES (
+#                     1, 'Help', 'please help me', 'open', 'other', 1, null,
+#                     null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address'
+#                 );
+#                 """
+#             )
+#         )
+#         database.commit()
+#
+#         response = test_client.get("/task/my-tasks", headers=build_headers(1))
+#
+#         assert response.status_code == HTTPStatus.OK
+#         assert response.json() == [
+#             {
+#                 "id": 1,
+#                 "title": "Help",
+#                 "created_at": "2024-11-14T00:00:00Z",
+#                 "updated_at": None,
+#                 "status": "open",
+#                 "owner": {"id": 1, "first_name": "Alice"},
+#                 "helper": None,
+#                 "description": "please help me",
+#                 "location": {
+#                     "lat": 39.4738,
+#                     "lon": 0.3756,
+#                     "address": "My address",
+#                 },
+#                 "category": "other",
+#             }
+#         ]

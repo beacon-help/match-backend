@@ -6,6 +6,19 @@ from sqlalchemy.orm import Mapped, mapped_column
 from match.db import Base
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True, autoincrement="auto")
+    first_name: Mapped[str] = mapped_column()
+    last_name: Mapped[str] = mapped_column()
+    email: Mapped[str] = mapped_column(unique=True)
+    properties: Mapped[str] = mapped_column()
+    is_verified: Mapped[bool] = mapped_column(default=False)
+    verification_code: Mapped[str] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column()
+
+
 class Task(Base):
     __tablename__ = "tasks"
 
