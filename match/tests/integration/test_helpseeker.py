@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import text
 
+from match.db import Session
 from match.tests.conftest import build_headers
 
 
@@ -61,46 +62,67 @@ class TestCaseUserSignupPath:
         assert me_response_2.status_code == HTTPStatus.OK
 
 
-# class TestUserTaskInteractions:
-#     def test_user_views_tasks(self, test_client, database):
-#         response = test_client.get("/task/my-tasks", headers=build_headers(1))
-#
-#         assert response.status_code == HTTPStatus.OK
-#         assert response.json() == []
-#
-#         database.execute(
-#             text(
-#                 """
-#                 INSERT OR REPLACE INTO tasks (
-#                     id, title, description, status, category, owner_id, helper_id,
-#                     updated_at, created_at, location_lat, location_lon, location_address
-#                 ) VALUES (
-#                     1, 'Help', 'please help me', 'open', 'other', 1, null,
-#                     null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address'
-#                 );
-#                 """
-#             )
-#         )
-#         database.commit()
-#
-#         response = test_client.get("/task/my-tasks", headers=build_headers(1))
-#
-#         assert response.status_code == HTTPStatus.OK
-#         assert response.json() == [
-#             {
-#                 "id": 1,
-#                 "title": "Help",
-#                 "created_at": "2024-11-14T00:00:00Z",
-#                 "updated_at": None,
-#                 "status": "open",
-#                 "owner": {"id": 1, "first_name": "Alice"},
-#                 "helper": None,
-#                 "description": "please help me",
-#                 "location": {
-#                     "lat": 39.4738,
-#                     "lon": 0.3756,
-#                     "address": "My address",
-#                 },
-#                 "category": "other",
-#             }
-#         ]
+class TestUserTaskInteractions:
+    @pytest.fixture()
+    def populate_db(self):
+        session = Session()
+        clear_users_statement = "DELETE FROM users;"
+        clear_statement = "DELETE FROM tasks;"
+        user_stmt = """
+        INSERT OR REPLACE INTO users (
+            id, first_name, last_name, email, properties, is_verified, verification_code, created_at
+        ) VALUES
+            (1, 'John', 'Johnson', 'john@johnson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z');
+        """
+        session.execute(text(clear_users_statement))
+        session.execute(text(clear_statement))
+        session.execute(text(user_stmt))
+        session.commit()
+        return session
+
+    def test_user_views_tasks(self, test_client, populate_db):
+        session = populate_db
+
+        response = test_client.get("/task/my-tasks", headers=build_headers(1))
+
+        assert response.status_code == HTTPStatus.OK
+        assert response.json() == []
+
+        session.execute(
+            text(
+                """
+                INSERT OR REPLACE INTO tasks (
+                    id, title, description, status, category, owner_id, helper_id,
+                    updated_at, created_at, location_lat, location_lon, location_address
+                ) VALUES (
+                    1, 'Help', 'please help me', 'open', 'other', 1, null,
+                    null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address'
+                );
+                """
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/task/my-tasks", headers=build_headers(1))
+
+        assert response.status_code == HTTPStatus.OK
+        actual = response.json()
+        assert len(actual) == 1
+        assert actual == [
+            {
+                "id": 1,
+                "title": "Help",
+                "created_at": "2024-11-14T00:00:00Z",
+                "updated_at": None,
+                "status": "open",
+                "owner": {"id": 1, "first_name": "John"},
+                "helper": None,
+                "description": "please help me",
+                "location": {
+                    "lat": 39.4738,
+                    "lon": 0.3756,
+                    "address": "My address",
+                },
+                "category": "other",
+            }
+        ]

@@ -1,3 +1,4 @@
+import json
 from copy import deepcopy
 from datetime import datetime
 from datetime import timezone as tz
@@ -196,12 +197,231 @@ class InMemoryMatchRepository(MatchRepository):
 
 
 # @dataclass
-class SQLiteRepository(InMemoryMatchRepository):
+class SQLiteRepository(MatchRepository):
     def __init__(self, session: SQLAlchemySession) -> None:
-        self.users: dict[int, User] = {}
-        self.tasks: dict[int, Task] = {}
-        self._setup_test_data()
         self.session = session
+        self._test_data_seeded = False
+
+    def _setup_test_data(self) -> None:
+        has_users = self.session.execute(select(db_models.User.id).limit(1)).first() is not None
+        has_tasks = self.session.execute(select(db_models.Task.id).limit(1)).first() is not None
+        if has_users and has_tasks:
+            return
+
+        test_users = [
+            db_models.User(
+                id=100,
+                first_name="John",
+                last_name="Johnson",
+                email="john@johnson.com",
+                properties=json.dumps([]),
+                is_verified=True,
+                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+            ),
+            db_models.User(
+                id=101,
+                first_name="Adam",
+                last_name="Adamson",
+                email="adam@adamson.com",
+                properties=json.dumps([]),
+                is_verified=True,
+                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+            ),
+            db_models.User(
+                id=102,
+                first_name="Gary",
+                last_name="Moveout",
+                email="gary@move.out",
+                properties=json.dumps([]),
+                is_verified=False,
+                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+            ),
+            db_models.User(
+                id=103,
+                first_name="Garry",
+                last_name="Moveout",
+                email="garry@move.out",
+                properties=json.dumps([]),
+                is_verified=False,
+                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+            ),
+        ]
+
+        test_location = (40.7128, -74.0060, "New York, NY")
+        test_tasks = [
+            db_models.Task(
+                id=100,
+                title="Help",
+                description="please help me",
+                owner_id=100,
+                helper_id=None,
+                status=TaskStatus.OPEN.value,
+                category=Category.OTHER.value,
+                updated_at=None,
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                location_lat=test_location[0],
+                location_lon=test_location[1],
+                location_address=test_location[2],
+            ),
+            db_models.Task(
+                id=101,
+                title="Help",
+                description="please help me",
+                owner_id=100,
+                helper_id=101,
+                status=TaskStatus.PENDING.value,
+                category=Category.OTHER.value,
+                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                location_lat=test_location[0],
+                location_lon=test_location[1],
+                location_address=test_location[2],
+            ),
+            db_models.Task(
+                id=102,
+                title="Help",
+                description="please help me",
+                owner_id=100,
+                helper_id=101,
+                status=TaskStatus.APPROVED.value,
+                category=Category.OTHER.value,
+                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                location_lat=test_location[0],
+                location_lon=test_location[1],
+                location_address=test_location[2],
+            ),
+            db_models.Task(
+                id=103,
+                title="Help",
+                description="please help me",
+                owner_id=100,
+                helper_id=101,
+                status=TaskStatus.SUCCEEDED.value,
+                category=Category.OTHER.value,
+                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                location_lat=test_location[0],
+                location_lon=test_location[1],
+                location_address=test_location[2],
+            ),
+            db_models.Task(
+                id=104,
+                title="Help",
+                description="please help me",
+                owner_id=100,
+                helper_id=101,
+                status=TaskStatus.FAILED.value,
+                category=Category.OTHER.value,
+                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                location_lat=test_location[0],
+                location_lon=test_location[1],
+                location_address=test_location[2],
+            ),
+            db_models.Task(
+                id=105,
+                title="Help",
+                description="please help me",
+                owner_id=100,
+                helper_id=101,
+                status=TaskStatus.CANCELLED.value,
+                category=Category.OTHER.value,
+                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
+                location_lat=test_location[0],
+                location_lon=test_location[1],
+                location_address=test_location[2],
+            ),
+        ]
+
+        for user in test_users:
+            self.session.merge(user)
+        for task in test_tasks:
+            self.session.merge(task)
+        self.session.commit()
+
+    def _ensure_test_data(self) -> None:
+        if self._test_data_seeded:
+            return
+        try:
+            self._setup_test_data()
+        except sqlalchemy.exc.OperationalError:
+            return
+        self._test_data_seeded = True
+
+    @staticmethod
+    def _user_to_domain(obj: db_models.User) -> User:
+        return User(
+            id=obj.id,
+            first_name=obj.first_name,
+            last_name=obj.last_name,
+            email=obj.email,
+            properties=json.loads(obj.properties),
+            is_verified=obj.is_verified,
+            verification_code=obj.verification_code,
+        )
+
+    def _get_user_by_id(self, user_id: int) -> db_models.User:
+        statement = select(db_models.User).filter_by(id=user_id)
+        try:
+            return self.session.execute(statement).one()[0]
+        except sqlalchemy.orm.exc.NoResultFound:
+            raise exceptions.UserNotFound
+
+    def create_user(self, user_data: dict) -> User:
+        self._ensure_test_data()
+        user = User(id=0, **user_data)
+        existing_user = self.session.scalars(
+            select(db_models.User).filter_by(email=user.email)
+        ).first()
+        if existing_user is not None:
+            return self._user_to_domain(existing_user)
+        db_model = db_models.User(
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            properties=json.dumps(user.properties),
+            is_verified=user.is_verified,
+            verification_code=user.verification_code,
+            created_at=datetime.now(tz.utc),
+        )
+        self.session.add(db_model)
+        self.session.commit()
+        self.session.refresh(db_model)
+        return self._user_to_domain(db_model)
+
+    def user_update(self, user: User) -> User:
+        self._ensure_test_data()
+        db_obj = self._get_user_by_id(user.id)
+
+        db_obj.first_name = user.first_name
+        db_obj.last_name = user.last_name
+        db_obj.email = user.email
+        db_obj.properties = json.dumps(user.properties)
+        db_obj.is_verified = user.is_verified
+        db_obj.verification_code = user.verification_code
+
+        self.session.commit()
+        self.session.refresh(db_obj)
+        return self._user_to_domain(db_obj)
+
+    def get_user_by_id(self, user_id: int) -> User:
+        self._ensure_test_data()
+        db_obj = self._get_user_by_id(user_id)
+        return self._user_to_domain(db_obj)
+
+    def get_users_by_ids(self, user_ids: set[int]) -> dict[int, User]:
+        self._ensure_test_data()
+        if not user_ids:
+            return {}
+        statement = select(db_models.User).where(db_models.User.id.in_(user_ids))
+        db_objs = self.session.scalars(statement).all()
+        return {obj.id: self._user_to_domain(obj) for obj in db_objs}
 
     @staticmethod
     def _task_to_domain(obj: db_models.Task) -> Task:
@@ -284,7 +504,7 @@ class SQLiteRepository(InMemoryMatchRepository):
         db_obj.title = task.title
         db_obj.description = task.description
         db_obj.helper_id = task.helper_id
-        db_obj.status = task.status
+        db_obj.status = task.status.value
         db_obj.category = task.category.value
         db_obj.updated_at = task.updated_at
 

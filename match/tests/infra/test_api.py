@@ -11,6 +11,31 @@ from match.tests.conftest import build_headers
 VALID_VERIF_CODE = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
 
 
+@pytest.fixture(autouse=True)
+def populate_db():
+    session = Session()
+    clear_users_statement = "DELETE FROM users;"
+    clear_statement = "DELETE FROM tasks;"
+    session.execute(text(clear_users_statement))
+    session.execute(text(clear_statement))
+    users_statement = """
+        INSERT OR REPLACE INTO users (
+            id, first_name, last_name, email, properties, is_verified, verification_code, created_at
+        ) VALUES
+            (100, 'John', 'Johnson', 'john@johnson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
+            (101, 'Adam', 'Adamson', 'adam@adamson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
+            (102, 'Gary', 'Moveout', 'gary@move.out', '[]', 0, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
+            (103, 'Garry', 'Moveout', 'garry@move.out', '[]', 0, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z');
+        """
+    statement = """
+        INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
+        VALUES (100, 'Help', 'please help me', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
+        """
+    session.execute(text(users_statement))
+    session.execute(text(statement))
+    session.commit()
+
+
 def build_user_response(user_id=100):
     return {
         "id": user_id,
@@ -123,19 +148,6 @@ def test_verify_user_happy_path(test_client):
 def test_verify_user_failed(user_id, verification_code, test_client):
     response = test_client.put(f"/user/verify/{verification_code}", headers=build_headers(user_id))
     assert response.status_code == HTTPStatus.BAD_REQUEST
-
-
-@pytest.fixture(autouse=True)
-def populate_db():
-    session = Session()
-    clear_statement = "DELETE FROM tasks;"
-    session.execute(text(clear_statement))
-    statement = """
-        INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
-        VALUES (100, 'Help', 'please help me', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
-        """
-    session.execute(text(statement))
-    session.commit()
 
 
 def test_get_task(test_client):
