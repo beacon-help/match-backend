@@ -80,6 +80,23 @@ class TestUserTaskInteractions:
         session.commit()
         return session
 
+    @staticmethod
+    def _add_task(session: Session, task_id=1, owner_id=1, helper_id="null"):
+        session.execute(
+            text(
+                f"""
+                INSERT OR REPLACE INTO tasks (
+                    id, title, description, status, category, owner_id, helper_id,
+                    updated_at, created_at, location_lat, location_lon, location_address
+                ) VALUES (
+                    {task_id}, 'Help', 'please help me', 'open', 'other', {owner_id}, {helper_id},
+                    null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address'
+                );
+                """
+            )
+        )
+        session.commit()
+
     def test_user_views_tasks(self, test_client, populate_db):
         session = populate_db
 
@@ -88,20 +105,7 @@ class TestUserTaskInteractions:
         assert response.status_code == HTTPStatus.OK
         assert response.json() == []
 
-        session.execute(
-            text(
-                """
-                INSERT OR REPLACE INTO tasks (
-                    id, title, description, status, category, owner_id, helper_id,
-                    updated_at, created_at, location_lat, location_lon, location_address
-                ) VALUES (
-                    1, 'Help', 'please help me', 'open', 'other', 1, null,
-                    null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address'
-                );
-                """
-            )
-        )
-        session.commit()
+        self._add_task(session)
 
         response = test_client.get("/task/my-tasks", headers=build_headers(1))
 
