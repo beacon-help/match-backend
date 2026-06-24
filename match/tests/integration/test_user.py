@@ -72,7 +72,8 @@ class TestUserTaskInteractions:
         INSERT OR REPLACE INTO users (
             id, first_name, last_name, email, properties, is_verified, verification_code, created_at
         ) VALUES
-            (1, 'John', 'Johnson', 'john@johnson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z');
+            (1, 'John', 'Johnson', 'john@johnson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
+            (2, 'Adam', 'Adamson', 'adam@adamson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z');
         """
         session.execute(text(clear_users_statement))
         session.execute(text(clear_statement))
@@ -130,3 +131,81 @@ class TestUserTaskInteractions:
                 "category": "other",
             }
         ]
+
+    def test_users_complete_task_together(self, test_client, populate_db):
+        session = populate_db
+        task_id = 123
+        user_1_id = 1
+        user_2_id = 2
+
+        self._add_task(session, task_id=task_id)
+
+        join_response = test_client.put(
+            f"/task/{task_id}", params={"action": "join"}, headers=build_headers(user_2_id)
+        )
+
+        assert join_response.status_code == HTTPStatus.OK
+        task = join_response.json()
+        assert task["status"] == "pending"
+        assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}
+
+        approve_response = test_client.put(
+            f"/task/{task_id}",
+            params={"action": "approve", "helper_id": user_2_id},
+            headers=build_headers(user_1_id),
+        )
+
+        assert approve_response.status_code == HTTPStatus.OK
+        task = approve_response.json()
+        assert task["status"] == "approved"
+        assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}
+
+        success_response = test_client.put(
+            f"/task/{task_id}",
+            params={"action": "report_success"},
+            headers=build_headers(user_1_id),
+        )
+
+        assert success_response.status_code == HTTPStatus.OK
+        task = success_response.json()
+        assert task["status"] == "succeeded"
+        assert task["owner"] == {"id": user_1_id, "first_name": "John"}
+        assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}
+
+    def test_user_rejects_helper_and_closes_task(self, test_client, populate_db):
+        session = populate_db
+        task_id = 123
+        user_1_id = 1
+        user_2_id = 2
+
+        self._add_task(session, task_id=task_id)
+
+        join_response = test_client.put(
+            f"/task/{task_id}", params={"action": "join"}, headers=build_headers(user_2_id)
+        )
+
+        assert join_response.status_code == HTTPStatus.OK
+        task = join_response.json()
+        assert task["status"] == "pending"
+        assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}
+
+        reject_response = test_client.put(
+            f"/task/{task_id}",
+            params={"action": "reject", "helper_id": user_2_id},
+            headers=build_headers(user_1_id),
+        )
+
+        assert reject_response.status_code == HTTPStatus.OK
+        task = reject_response.json()
+        assert task["status"] == "open"
+        assert task["helper"] is None
+
+        close_response = test_client.put(
+            f"/task/{task_id}", params={"action": "close"}, headers=build_headers(user_1_id)
+        )
+
+        assert close_response.status_code == HTTPStatus.OK
+        task = close_response.json()
+        assert task["status"] == "cancelled"
+        assert task["owner"] == {"id": user_1_id, "first_name": "John"}
+        assert task["helper"] is None
