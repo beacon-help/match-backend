@@ -73,7 +73,8 @@ class TestUserTaskInteractions:
             id, first_name, last_name, email, properties, is_verified, verification_code, created_at
         ) VALUES
             (1, 'John', 'Johnson', 'john@johnson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
-            (2, 'Adam', 'Adamson', 'adam@adamson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z');
+            (2, 'Adam', 'Adamson', 'adam@adamson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
+            (3, 'Gary', 'Moveout', 'gary@move.out', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z');
         """
         session.execute(text(clear_users_statement))
         session.execute(text(clear_statement))
@@ -209,3 +210,29 @@ class TestUserTaskInteractions:
         assert task["status"] == "cancelled"
         assert task["owner"] == {"id": user_1_id, "first_name": "John"}
         assert task["helper"] is None
+
+    @pytest.mark.skip()
+    def test_multiple_users_cannot_join_same_task(self, test_client, populate_db):
+        session = populate_db
+        task_id = 123
+        user_1_id = 1
+        user_2_id = 2
+        user_3_id = 3
+
+        self._add_task(session, task_id=task_id)
+
+        first_join_response = test_client.put(
+            f"/task/{task_id}", params={"action": "join"}, headers=build_headers(user_2_id)
+        )
+
+        assert first_join_response.status_code == HTTPStatus.OK
+        task = first_join_response.json()
+        assert task["status"] == "pending"
+        assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}
+
+        second_join_reponse = test_client.put(
+            f"/task/{task_id}", params={"action": "join"}, headers=build_headers(user_3_id)
+        )
+
+        assert second_join_reponse.status_code == HTTPStatus.OK
+        # TODO
