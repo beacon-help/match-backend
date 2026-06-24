@@ -32,6 +32,13 @@ class Location:
     address: str
 
 
+@dataclass(frozen=True)
+class LocationRadius:
+    lat: float
+    lon: float
+    radius_km: float
+
+
 @dataclass
 class Task:
     id: int | None

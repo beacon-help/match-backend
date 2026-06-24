@@ -197,6 +197,36 @@ def test_list_tasks_filtered_by_null_helper_id(test_client):
     assert all(task["helper"] is None for task in tasks)
 
 
+def test_list_tasks_filtered_by_radius(test_client):
+    session = Session()
+    statement = """
+        INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
+        VALUES
+            (101, 'Nearby task', 'nearby location', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', 39.4740, 0.3758, 'Nearby address'),
+            (102, 'Far task', 'far location', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', 40.7128, -74.0060, 'NYC'),
+            (103, 'No location task', 'no location', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', null, null, null);
+        """
+    session.execute(text(statement))
+    session.commit()
+
+    response = test_client.get(
+        "/task",
+        params={"lat": 39.4738, "lon": 0.3756, "radius_km": 1},
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert {task["id"] for task in response.json()} == {100, 101}
+
+
+@pytest.mark.parametrize(
+    "params", ({"lat": 39.4738, "radius_km": 1}, {"lat": 39.4738, "lot": 39.4738})
+)
+def test_list_tasks_rejects_partial_radius_filter(test_client, params):
+    response = test_client.get("/task", params=params)
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
 def test_get_my_tasks(test_client):
     session = Session()
     statement = """

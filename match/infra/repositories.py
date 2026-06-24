@@ -1,4 +1,5 @@
 import json
+import math
 from copy import deepcopy
 from datetime import datetime
 from datetime import timezone as tz
@@ -12,6 +13,39 @@ from match.domain.interfaces import MatchRepository, TaskFilter
 from match.domain.task import Category, Location, Task, TaskStatus
 from match.domain.user import User
 from match.infra import db_models
+
+EARTH_RADIUS_KM = 6371.0088
+
+
+def _distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = lat2_rad - lat1_rad
+    delta_lon = math.radians(lon2 - lon1)
+
+    haversine = (
+        math.sin(delta_lat / 2) ** 2
+        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
+    )
+    return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(haversine))
+
+
+def _filter_tasks_by_radius(tasks: list[Task], filters: TaskFilter) -> list[Task]:
+    location_radius = filters.get("location_radius")
+    if location_radius is None:
+        return tasks
+    return [
+        task
+        for task in tasks
+        if task.location is not None
+        and _distance_km(
+            location_radius.lat,
+            location_radius.lon,
+            task.location.lat,
+            task.location.lon,
+        )
+        <= location_radius.radius_km
+    ]
 
 
 class InMemoryMatchRepository(MatchRepository):
@@ -186,7 +220,7 @@ class InMemoryMatchRepository(MatchRepository):
             tasks = [task for task in tasks if task.owner_id == filters["owner_id"]]
         if "helper_id" in filters:
             tasks = [task for task in tasks if task.helper_id == filters["helper_id"]]
-        return tasks
+        return _filter_tasks_by_radius(tasks, filters)
 
     def task_update(self, task: Task) -> Task:
         if task.id is None:
@@ -494,7 +528,8 @@ class SQLiteRepository(MatchRepository):
         if "helper_id" in filters:
             statement = statement.filter_by(helper_id=filters["helper_id"])
         db_objs = self.session.scalars(statement).all()
-        return [self._task_to_domain(obj) for obj in db_objs]
+        tasks = [self._task_to_domain(obj) for obj in db_objs]
+        return _filter_tasks_by_radius(tasks, filters)
 
     def task_update(self, task: Task) -> Task:
         if not task.id:

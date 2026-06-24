@@ -1,7 +1,7 @@
 import abc
 from typing import TypedDict
 
-from match.domain.task import Category, Task, TaskStatus
+from match.domain.task import Category, LocationRadius, Task, TaskStatus
 from match.domain.user import User
 
 
@@ -10,6 +10,7 @@ class TaskFilter(TypedDict, total=False):
     category: Category
     owner_id: int
     helper_id: int | None
+    location_radius: LocationRadius
 
 
 class MatchRepository(abc.ABC):

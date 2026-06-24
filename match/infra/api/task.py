@@ -7,7 +7,7 @@ from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import PermissionDenied
 from match.domain.interfaces import TaskFilter
-from match.domain.task import Category, Location, Task, TaskStatus
+from match.domain.task import Category, Location, LocationRadius, Task, TaskStatus
 from match.infra.api.auth import get_user_id
 from match.infra.api.schemas import (
     PublicTaskSchema,
@@ -22,6 +22,7 @@ router = APIRouter()
 def _task_filters_from_request(request: Request) -> TaskFilter:
     query_params = request.query_params
     filters: TaskFilter = {}
+    location_filter_keys = {"lat", "lon", "radius_km"}
 
     try:
         if "status" in query_params:
@@ -33,6 +34,21 @@ def _task_filters_from_request(request: Request) -> TaskFilter:
         if "helper_id" in query_params:
             helper_id = query_params["helper_id"]
             filters["helper_id"] = None if helper_id == "null" else int(helper_id)
+        if location_filter_keys & query_params.keys():
+            if not location_filter_keys <= query_params.keys():
+                raise ValueError
+            location_radius = LocationRadius(
+                lat=float(query_params["lat"]),
+                lon=float(query_params["lon"]),
+                radius_km=float(query_params["radius_km"]),
+            )
+            if not -90 <= location_radius.lat <= 90:
+                raise ValueError
+            if not -180 <= location_radius.lon <= 180:
+                raise ValueError
+            if location_radius.radius_km <= 0:
+                raise ValueError
+            filters["location_radius"] = location_radius
     except ValueError as exc:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Invalid task filter."
