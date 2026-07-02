@@ -159,8 +159,24 @@ def test_get_task(test_client):
     assert response.json() == expected
 
 
+@pytest.mark.parametrize(
+    "headers,expected_status",
+    (
+        pytest.param(None, HTTPStatus.UNAUTHORIZED, id="no-header"),
+        pytest.param({"x-user": "abc"}, HTTPStatus.UNAUTHORIZED, id="non-integer-header"),
+        pytest.param(build_headers(9999), HTTPStatus.UNAUTHORIZED, id="unknown-user"),
+        pytest.param(build_headers(102), HTTPStatus.UNAUTHORIZED, id="unverified-user"),
+        pytest.param(build_headers(100), HTTPStatus.OK, id="verified-user"),
+    ),
+)
+def test_list_tasks_requires_verified_user(test_client, headers, expected_status):
+    response = test_client.get("/task", headers=headers)
+
+    assert response.status_code == expected_status
+
+
 def test_list_tasks(test_client):
-    response = test_client.get("/task")
+    response = test_client.get("/task", headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.OK
     tasks = response.json()
@@ -179,7 +195,7 @@ def test_list_tasks_filtered_by_status(test_client):
     session.execute(text(statement))
     session.commit()
 
-    response = test_client.get("/task", params={"status": "pending"})
+    response = test_client.get("/task", params={"status": "pending"}, headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.OK
     tasks = response.json()
@@ -189,7 +205,7 @@ def test_list_tasks_filtered_by_status(test_client):
 
 
 def test_list_tasks_filtered_by_null_helper_id(test_client):
-    response = test_client.get("/task", params={"helper_id": "null"})
+    response = test_client.get("/task", params={"helper_id": "null"}, headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.OK
     tasks = response.json()
@@ -212,6 +228,7 @@ def test_list_tasks_filtered_by_radius(test_client):
     response = test_client.get(
         "/task",
         params={"lat": 39.4738, "lon": 0.3756, "radius_km": 1},
+        headers=build_headers(100),
     )
 
     assert response.status_code == HTTPStatus.OK
@@ -222,7 +239,7 @@ def test_list_tasks_filtered_by_radius(test_client):
     "params", ({"lat": 39.4738, "radius_km": 1}, {"lat": 39.4738, "lot": 39.4738})
 )
 def test_list_tasks_rejects_partial_radius_filter(test_client, params):
-    response = test_client.get("/task", params=params)
+    response = test_client.get("/task", params=params, headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
 

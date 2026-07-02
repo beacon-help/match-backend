@@ -8,7 +8,8 @@ from match.bootstrap import get_service
 from match.domain.exceptions import PermissionDenied
 from match.domain.interfaces import TaskFilter
 from match.domain.task import Category, Location, LocationRadius, Task, TaskStatus
-from match.infra.api.auth import get_user_id
+from match.domain.user import User
+from match.infra.api.auth import get_user_id, verified_user
 from match.infra.api.schemas import (
     PublicTaskSchema,
     TaskCreationRequestSchema,
@@ -137,6 +138,7 @@ def manage_task(
 def list_tasks(
     request: Request,
     service: MatchService = Depends(get_service),
+    _: User = Depends(verified_user),
 ) -> list:
     return service.get_tasks_response(filters=_task_filters_from_request(request))
 
