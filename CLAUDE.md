@@ -13,12 +13,14 @@ FastAPI + SQLite service running inside Docker. Python managed via `uv`.
 ## Common commands
 
 ```shell
-make build        # Rebuild Docker image (no cache)
-make up           # Start containers in background
-make down         # Stop and remove containers
-make bash         # Open shell inside the container
-make test         # Run pytest (match/tests/)
-make format       # Run mypy + isort + black
+make build             # Rebuild Docker image (no cache)
+make up                # Start containers in background
+make down              # Stop and remove containers
+make bash              # Open shell inside the container
+make test              # Run pytest (match/tests/)
+make test unit         # Run pytest (match/tests/)
+make test integration  # Run pytest (match/tests/)
+make format            # Run mypy + isort + black
 ```
 
 ### Database / migrations

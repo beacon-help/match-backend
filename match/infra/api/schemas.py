@@ -11,6 +11,7 @@ class UserCreationBaseSchema(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
+    password: str
 
 
 class HelpseekerCreationRequestSchema(UserCreationBaseSchema):
@@ -29,6 +30,16 @@ class UserSchema(BaseModel):
     last_name: str
     email: EmailStr
     is_verified: bool
+
+
+class TokenSchema(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshRequestSchema(BaseModel):
+    refresh_token: str
 
 
 class TaskStatus(Enum):

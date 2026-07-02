@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from match.config import get_config
+from match.infra.api.security import create_access_token
 from match.main import create_app
 
 
@@ -17,4 +18,4 @@ def config():
 
 
 def build_headers(user_id):
-    return {"x-user": str(user_id)}
+    return {"Authorization": f"Bearer {create_access_token(user_id)}"}

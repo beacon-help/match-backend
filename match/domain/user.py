@@ -22,6 +22,7 @@ class User:
 
     is_verified: bool = field(default=False)
     verification_code: str = field(default_factory=generate_uuid_as_str)
+    password_hash: str | None = field(default=None)
 
     def __repr__(self) -> str:
         return f"User {self.id}"

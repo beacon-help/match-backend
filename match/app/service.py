@@ -1,9 +1,11 @@
 from dataclasses import asdict, dataclass
 from typing import Any, Iterable
 
+from match.domain.exceptions import AuthenticationFailed, UserNotFound, UserVerificationCodeInvalid
 from match.domain.interfaces import MatchRepository, MessageClient, TaskFilter
 from match.domain.task import Category, Location, Task
 from match.domain.user import User, create_user_verification_message
+from match.infra.api.security import hash_password, verify_password
 
 VERIFICATION_URL = "localhost:8000/user/verify/"
 
@@ -14,7 +16,12 @@ class MatchService:
     repository: MatchRepository
 
     def _create_user(
-        self, first_name: str, last_name: str, email: str, properties: Iterable[Any]
+        self,
+        first_name: str,
+        last_name: str,
+        email: str,
+        password: str,
+        properties: Iterable[Any],
     ) -> User:
         user_data = {
             "first_name": first_name,
@@ -22,6 +29,7 @@ class MatchService:
             "email": email,
             "is_verified": False,
             "properties": [getattr(property_, "value", property_) for property_ in properties],
+            "password_hash": hash_password(password),
         }
         user = self.repository.create_user(user_data=user_data)
         return user
@@ -31,9 +39,21 @@ class MatchService:
         first_name: str,
         last_name: str,
         email: str,
+        password: str,
         properties: Iterable[Any] = (),
     ) -> User:
-        return self._create_user(first_name, last_name, email, properties=properties)
+        return self._create_user(first_name, last_name, email, password, properties=properties)
+
+    def authenticate(self, email: str, password: str) -> User:
+        try:
+            user = self.repository.get_user_by_email(email)
+        except UserNotFound:
+            raise AuthenticationFailed
+        if user.password_hash is None or not verify_password(password, user.password_hash):
+            raise AuthenticationFailed
+        if not user.is_verified:
+            raise AuthenticationFailed
+        return user
 
     def send_verification_request(self, user: User) -> None:
         if not user.verification_code:
@@ -42,8 +62,11 @@ class MatchService:
         message = create_user_verification_message(user, verification_url)
         self.user_messaging_client.send_message(message, user)
 
-    def verify_user_with_code(self, user_id: int, verification_code: str) -> None:
-        user = self.get_user_by_id(user_id)
+    def verify_user_with_code(self, verification_code: str) -> None:
+        try:
+            user = self.repository.get_user_by_verification_code(verification_code)
+        except UserNotFound:
+            raise UserVerificationCodeInvalid
         user = user.verify(verification_code)
         self.repository.user_update(user)
 

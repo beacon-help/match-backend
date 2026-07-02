@@ -16,6 +16,7 @@ class User(Base):
     properties: Mapped[str] = mapped_column()
     is_verified: Mapped[bool] = mapped_column(default=False)
     verification_code: Mapped[str] = mapped_column()
+    password_hash: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column()
 
 

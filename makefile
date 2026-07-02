@@ -23,7 +23,16 @@ bash:
 	docker compose exec -it $(SERVICE) bash
 
 test:
-	docker compose run $(SERVICE) uv run pytest match/tests/ -v
+	@if [ "$(word 2,$(MAKECMDGOALS))" = "unit" ]; then \
+		docker compose run $(SERVICE) uv run pytest match/tests/unit/ -v; \
+	elif [ "$(word 2,$(MAKECMDGOALS))" = "integration" ]; then \
+		docker compose run $(SERVICE) uv run pytest match/tests/integration/ -v; \
+	else \
+		docker compose run $(SERVICE) uv run pytest match/tests/ -v; \
+	fi
+
+unit integration:
+	@:
 
 
 format:

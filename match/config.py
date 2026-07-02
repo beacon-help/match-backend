@@ -24,6 +24,11 @@ class Config:
     SENTRY_ENABLED: bool
     SENTRY_DSN: str
 
+    JWT_SECRET: str
+
+    ACCESS_TOKEN_TTL_MIN: int = 30
+    REFRESH_TOKEN_TTL_DAYS: int = 7
+
 
 def get_config(auto_convert: bool = True) -> Config:
     raw_config: dict[str, Any] = {}
@@ -44,5 +49,8 @@ def get_config(auto_convert: bool = True) -> Config:
                 raw_config[key] = False
 
         raw_config["ENV"] = Environment[raw_config["ENV"].upper()]
+        for int_key in ("ACCESS_TOKEN_TTL_MIN", "REFRESH_TOKEN_TTL_DAYS"):
+            if int_key in raw_config:
+                raw_config[int_key] = int(raw_config[int_key])
 
     return Config(**raw_config)
