@@ -1,6 +1,63 @@
 {
   "components": {
     "schemas": {
+      "Body_login_user_login_post": {
+        "properties": {
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          },
+          "grant_type": {
+            "anyOf": [
+              {
+                "pattern": "password",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "scope": {
+            "default": "",
+            "title": "Scope",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_user_login_post",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -12,6 +69,36 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HelpseekerCreationRequestSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "last_name": {
+            "title": "Last Name",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "email",
+          "password"
+        ],
+        "title": "HelpseekerCreationRequestSchema",
         "type": "object"
       },
       "Location": {
@@ -84,6 +171,19 @@
           "category"
         ],
         "title": "PublicTaskSchema",
+        "type": "object"
+      },
+      "RefreshRequestSchema": {
+        "properties": {
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshRequestSchema",
         "type": "object"
       },
       "TaskCreationRequestSchema": {
@@ -230,35 +330,27 @@
         "title": "TaskUserSchema",
         "type": "object"
       },
-      "UserCreationRequestSchema": {
+      "TokenSchema": {
         "properties": {
-          "email": {
-            "format": "email",
-            "title": "Email",
+          "access_token": {
+            "title": "Access Token",
             "type": "string"
           },
-          "first_name": {
-            "title": "First Name",
+          "refresh_token": {
+            "title": "Refresh Token",
             "type": "string"
           },
-          "last_name": {
-            "title": "Last Name",
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
             "type": "string"
-          },
-          "properties": {
-            "items": {
-              "$ref": "#/components/schemas/VolunteerProperties"
-            },
-            "title": "Properties",
-            "type": "array"
           }
         },
         "required": [
-          "first_name",
-          "last_name",
-          "email"
+          "access_token",
+          "refresh_token"
         ],
-        "title": "UserCreationRequestSchema",
+        "title": "TokenSchema",
         "type": "object"
       },
       "UserSchema": {
@@ -328,6 +420,44 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VolunteerCreationRequestSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "last_name": {
+            "title": "Last Name",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "properties": {
+            "items": {
+              "$ref": "#/components/schemas/VolunteerProperties"
+            },
+            "title": "Properties",
+            "type": "array"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "email",
+          "password",
+          "properties"
+        ],
+        "title": "VolunteerCreationRequestSchema",
+        "type": "object"
+      },
       "VolunteerProperties": {
         "enum": [
           "HAS_CAR",
@@ -337,6 +467,17 @@
         ],
         "title": "VolunteerProperties",
         "type": "string"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "user/login"
+          }
+        },
+        "type": "oauth2"
       }
     }
   },
@@ -428,6 +569,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "List Tasks",
         "tags": [
           "task"
@@ -467,6 +613,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Create Task",
         "tags": [
           "task"
@@ -517,6 +668,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Get My Tasks",
         "tags": [
           "task"
@@ -649,9 +805,55 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Manage Task",
         "tags": [
           "task"
+        ]
+      }
+    },
+    "/user/login": {
+      "post": {
+        "operationId": "login_user_login_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_user_login_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "user"
         ]
       }
     },
@@ -670,20 +872,66 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
         "summary": "Get Me",
         "tags": [
           "user"
         ]
       }
     },
-    "/user/signup": {
+    "/user/refresh": {
       "post": {
-        "operationId": "create_user_user_signup_post",
+        "operationId": "refresh_user_refresh_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UserCreationRequestSchema"
+                "$ref": "#/components/schemas/RefreshRequestSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/user/signup/helpseeker": {
+      "post": {
+        "operationId": "create_helpseeker_user_user_signup_helpseeker_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HelpseekerCreationRequestSchema"
               }
             }
           },
@@ -711,7 +959,48 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Create User",
+        "summary": "Create Helpseeker User",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/user/signup/volunteer": {
+      "post": {
+        "operationId": "create_volunteer_user_user_signup_volunteer_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VolunteerCreationRequestSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Volunteer User",
         "tags": [
           "user"
         ]

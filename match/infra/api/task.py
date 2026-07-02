@@ -8,7 +8,8 @@ from match.bootstrap import get_service
 from match.domain.exceptions import PermissionDenied
 from match.domain.interfaces import TaskFilter
 from match.domain.task import Category, Location, LocationRadius, Task, TaskStatus
-from match.infra.api.auth import get_user_id
+from match.domain.user import User
+from match.infra.api.auth import get_user_id, verified_user
 from match.infra.api.schemas import (
     PublicTaskSchema,
     TaskCreationRequestSchema,
@@ -69,11 +70,10 @@ def public_task_to_dict(task: Task) -> dict:
 
 @router.post("/", response_model=TaskSchema, status_code=HTTPStatus.CREATED)
 def create_task(
-    request: Request,
     task_creation_params: TaskCreationRequestSchema,
+    user_id: int = Depends(get_user_id),
     service: MatchService = Depends(get_service),
 ) -> dict:
-    user_id = get_user_id(request)
     try:
         task = service.create_task(
             user_id,
@@ -91,14 +91,12 @@ def create_task(
 
 @router.put("/{task_id}", response_model=TaskSchema)
 def manage_task(
-    request: Request,
     task_id: int,
     action: str,
     helper_id: int | None = None,
+    user_id: int = Depends(get_user_id),
     service: MatchService = Depends(get_service),
 ) -> dict:
-    user_id = get_user_id(request)
-
     try:
         match action:
             case "join":
@@ -137,6 +135,7 @@ def manage_task(
 def list_tasks(
     request: Request,
     service: MatchService = Depends(get_service),
+    _: User = Depends(verified_user),
 ) -> list:
     return service.get_tasks_response(filters=_task_filters_from_request(request))
 
@@ -178,8 +177,9 @@ def list_tasks_public() -> list:
 
 
 @router.get("/my-tasks", response_model=list[TaskSchema])
-def get_my_tasks(request: Request, service: MatchService = Depends(get_service)) -> list[dict]:
-    user_id = get_user_id(request)
+def get_my_tasks(
+    user_id: int = Depends(get_user_id), service: MatchService = Depends(get_service)
+) -> list[dict]:
     return service.get_tasks_response(filters={"owner_id": user_id})
 
 

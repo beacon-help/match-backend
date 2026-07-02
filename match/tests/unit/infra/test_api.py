@@ -6,32 +6,44 @@ import pytest
 from sqlalchemy import text
 
 from match.db import Session
+from match.infra.api.security import hash_password
 from match.tests.conftest import build_headers
 
 VALID_VERIF_CODE = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
+SEED_PASSWORD = "s3cr3t-password"
 
 
 @pytest.fixture(autouse=True)
 def populate_db():
     session = Session()
+    password_hash = hash_password(SEED_PASSWORD)
     clear_users_statement = "DELETE FROM users;"
     clear_statement = "DELETE FROM tasks;"
     session.execute(text(clear_users_statement))
     session.execute(text(clear_statement))
     users_statement = """
         INSERT OR REPLACE INTO users (
-            id, first_name, last_name, email, properties, is_verified, verification_code, created_at
+            id, first_name, last_name, email, properties, is_verified, verification_code, password_hash, created_at
         ) VALUES
-            (100, 'John', 'Johnson', 'john@johnson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
-            (101, 'Adam', 'Adamson', 'adam@adamson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
-            (102, 'Gary', 'Moveout', 'gary@move.out', '[]', 0, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
-            (103, 'Garry', 'Moveout', 'garry@move.out', '[]', 0, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z');
+            (100, 'John', 'Johnson', 'john@johnson.com', '[]', 1, :code_100, :pw, '2024-11-14T00:00:00Z'),
+            (101, 'Adam', 'Adamson', 'adam@adamson.com', '[]', 1, :code_101, :pw, '2024-11-14T00:00:00Z'),
+            (102, 'Gary', 'Moveout', 'gary@move.out', '[]', 0, :code_102, :pw, '2024-11-14T00:00:00Z'),
+            (103, 'Garry', 'Moveout', 'garry@move.out', '[]', 0, :code_103, :pw, '2024-11-14T00:00:00Z');
         """
     statement = """
         INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
         VALUES (100, 'Help', 'please help me', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
         """
-    session.execute(text(users_statement))
+    session.execute(
+        text(users_statement),
+        {
+            "code_100": "verif-code-100",
+            "code_101": "verif-code-101",
+            "code_102": "verif-code-102",
+            "code_103": VALID_VERIF_CODE,
+            "pw": password_hash,
+        },
+    )
     session.execute(text(statement))
     session.commit()
 
@@ -88,6 +100,81 @@ def test_get_user_by_id(test_client):
     assert response.json() == expected
 
 
+def test_login_happy_path(test_client):
+    response = test_client.post(
+        "/user/login",
+        data={"username": "john@johnson.com", "password": SEED_PASSWORD},
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    body = response.json()
+    assert body["token_type"] == "bearer"
+    assert body["access_token"]
+    assert body["refresh_token"]
+
+    token = body["access_token"]
+    me_response = test_client.get("/user/me", headers={"Authorization": f"Bearer {token}"})
+    assert me_response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.parametrize(
+    "username,password",
+    (
+        pytest.param("john@johnson.com", "wrong-password", id="wrong-password"),
+        pytest.param("nobody@nowhere.com", SEED_PASSWORD, id="unknown-user"),
+        pytest.param("gary@move.out", SEED_PASSWORD, id="unverified-user"),
+    ),
+)
+def test_login_rejected(test_client, username, password):
+    response = test_client.post(
+        "/user/login",
+        data={"username": username, "password": password},
+    )
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_refresh_happy_path(test_client):
+    login_response = test_client.post(
+        "/user/login",
+        data={"username": "john@johnson.com", "password": SEED_PASSWORD},
+    )
+    refresh_token = login_response.json()["refresh_token"]
+
+    response = test_client.post("/user/refresh", json={"refresh_token": refresh_token})
+
+    assert response.status_code == HTTPStatus.OK
+    new_access_token = response.json()["access_token"]
+    me_response = test_client.get(
+        "/user/me", headers={"Authorization": f"Bearer {new_access_token}"}
+    )
+    assert me_response.status_code == HTTPStatus.OK
+
+
+def test_access_token_rejected_on_refresh(test_client):
+    login_response = test_client.post(
+        "/user/login",
+        data={"username": "john@johnson.com", "password": SEED_PASSWORD},
+    )
+    access_token = login_response.json()["access_token"]
+
+    response = test_client.post("/user/refresh", json={"refresh_token": access_token})
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_refresh_token_rejected_on_protected_endpoint(test_client):
+    login_response = test_client.post(
+        "/user/login",
+        data={"username": "john@johnson.com", "password": SEED_PASSWORD},
+    )
+    refresh_token = login_response.json()["refresh_token"]
+
+    response = test_client.get("/task", headers={"Authorization": f"Bearer {refresh_token}"})
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
 def test_create_helpseeker_user_rejects_properties(test_client):
     payload = {
         "first_name": "Arnold",
@@ -110,6 +197,7 @@ def test_create_helpseeker_user_rejects_properties(test_client):
                 "first_name": "Arnold",
                 "last_name": "Adams",
                 "email": "email@example.com",
+                "password": "s3cr3t-password",
             },
             id="helpseeker",
         ),
@@ -119,6 +207,7 @@ def test_create_helpseeker_user_rejects_properties(test_client):
                 "first_name": "John",
                 "last_name": "Johnson",
                 "email": "john@johnson.com",
+                "password": "s3cr3t-password",
                 "properties": ["HAS_CAR"],
             },
             id="volunteer",
@@ -132,21 +221,19 @@ def test_create_user_happy_path(test_client, endpoint, payload):
 
 
 def test_verify_user_happy_path(test_client):
-    verification_code = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
-    response = test_client.put(f"/user/verify/{verification_code}", headers=build_headers(103))
+    response = test_client.put(f"/user/verify/{VALID_VERIF_CODE}")
     assert response.status_code == HTTPStatus.OK
 
 
 @pytest.mark.parametrize(
-    "user_id,verification_code",
+    "verification_code",
     (
-        pytest.param(100, uuid4(), id="user already verified"),
-        pytest.param(100, VALID_VERIF_CODE, id="user already verified, valid code"),
-        pytest.param(103, uuid4(), id="user pending verification, invalid code"),
+        pytest.param("verif-code-100", id="user already verified"),
+        pytest.param(str(uuid4()), id="unknown verification code"),
     ),
 )
-def test_verify_user_failed(user_id, verification_code, test_client):
-    response = test_client.put(f"/user/verify/{verification_code}", headers=build_headers(user_id))
+def test_verify_user_failed(verification_code, test_client):
+    response = test_client.put(f"/user/verify/{verification_code}")
     assert response.status_code == HTTPStatus.BAD_REQUEST
 
 
@@ -159,8 +246,24 @@ def test_get_task(test_client):
     assert response.json() == expected
 
 
+@pytest.mark.parametrize(
+    "headers,expected_status",
+    (
+        pytest.param(None, HTTPStatus.UNAUTHORIZED, id="no-header"),
+        pytest.param({"x-user": "abc"}, HTTPStatus.UNAUTHORIZED, id="non-integer-header"),
+        pytest.param(build_headers(9999), HTTPStatus.UNAUTHORIZED, id="unknown-user"),
+        pytest.param(build_headers(102), HTTPStatus.UNAUTHORIZED, id="unverified-user"),
+        pytest.param(build_headers(100), HTTPStatus.OK, id="verified-user"),
+    ),
+)
+def test_list_tasks_requires_verified_user(test_client, headers, expected_status):
+    response = test_client.get("/task", headers=headers)
+
+    assert response.status_code == expected_status
+
+
 def test_list_tasks(test_client):
-    response = test_client.get("/task")
+    response = test_client.get("/task", headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.OK
     tasks = response.json()
@@ -179,7 +282,7 @@ def test_list_tasks_filtered_by_status(test_client):
     session.execute(text(statement))
     session.commit()
 
-    response = test_client.get("/task", params={"status": "pending"})
+    response = test_client.get("/task", params={"status": "pending"}, headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.OK
     tasks = response.json()
@@ -189,7 +292,7 @@ def test_list_tasks_filtered_by_status(test_client):
 
 
 def test_list_tasks_filtered_by_null_helper_id(test_client):
-    response = test_client.get("/task", params={"helper_id": "null"})
+    response = test_client.get("/task", params={"helper_id": "null"}, headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.OK
     tasks = response.json()
@@ -212,6 +315,7 @@ def test_list_tasks_filtered_by_radius(test_client):
     response = test_client.get(
         "/task",
         params={"lat": 39.4738, "lon": 0.3756, "radius_km": 1},
+        headers=build_headers(100),
     )
 
     assert response.status_code == HTTPStatus.OK
@@ -222,7 +326,7 @@ def test_list_tasks_filtered_by_radius(test_client):
     "params", ({"lat": 39.4738, "radius_km": 1}, {"lat": 39.4738, "lot": 39.4738})
 )
 def test_list_tasks_rejects_partial_radius_filter(test_client, params):
-    response = test_client.get("/task", params=params)
+    response = test_client.get("/task", params=params, headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
 

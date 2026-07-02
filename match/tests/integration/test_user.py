@@ -21,6 +21,7 @@ class TestCaseUserSignupPath:
                     "first_name": "Maria",
                     "last_name": "De La Luz",
                     "email": "maria@example.com",
+                    "password": "s3cr3t-password",
                 },
                 "/helpseeker",
                 id="helpseeker",
@@ -30,6 +31,7 @@ class TestCaseUserSignupPath:
                     "first_name": "Maria",
                     "last_name": "De La Luz",
                     "email": "maria.volunteer@example.com",
+                    "password": "s3cr3t-password",
                     "properties": ["HAS_CAR", "CAN_HOST"],
                 },
                 "/volunteer",
@@ -39,7 +41,7 @@ class TestCaseUserSignupPath:
     )
     @patch("match.domain.user.uuid.uuid4")
     def test_user_signup_and_verify(self, mock_uuid4, test_client, signup_payload, url_suffix):
-        verification_code = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
+        verification_code = f"signup-verif-code-{url_suffix.strip('/')}"
         mock_uuid4.return_value = verification_code
 
         user_created_response = test_client.post(
@@ -55,7 +57,7 @@ class TestCaseUserSignupPath:
         me_response = test_client.get(self._USER_ME_URL, headers=headers)
         assert me_response.status_code == HTTPStatus.UNAUTHORIZED
 
-        verify_response = test_client.put(f"/user/verify/{verification_code}", headers=headers)
+        verify_response = test_client.put(f"/user/verify/{verification_code}")
         assert verify_response.status_code == HTTPStatus.OK
 
         me_response_2 = test_client.get(self._USER_ME_URL, headers=headers)

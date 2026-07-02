@@ -71,7 +71,7 @@ class InMemoryMatchRepository(MatchRepository):
                 "Adamson",
                 "adam@adamson.com",
                 is_verified=True,
-                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
+                verification_code="3a86ddd8-a08e-56g4-98cg-55456c1g3g17",
             ),
             102: User(
                 102,
@@ -79,7 +79,7 @@ class InMemoryMatchRepository(MatchRepository):
                 "Moveout",
                 "gary@move.out",
                 is_verified=False,
-                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
+                verification_code="4b97eee9-b19f-67h5-09dh-66567d2h4h28",
             ),
             103: User(
                 101,
@@ -87,7 +87,7 @@ class InMemoryMatchRepository(MatchRepository):
                 "Moveout",
                 "garry@move.out",
                 is_verified=False,
-                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
+                verification_code="5ca8fffa-c2ag-78i6-1aei-77678e3i5i39",
             ),
         }
         test_location = Location(lat=40.7128, lon=-74.0060, address="New York, NY")
@@ -186,6 +186,18 @@ class InMemoryMatchRepository(MatchRepository):
         except KeyError:
             raise exceptions.UserNotFound
 
+    def get_user_by_email(self, email: str) -> User:
+        for user in self.users.values():
+            if user.email == email:
+                return deepcopy(user)
+        raise exceptions.UserNotFound
+
+    def get_user_by_verification_code(self, verification_code: str) -> User:
+        for user in self.users.values():
+            if user.verification_code == verification_code:
+                return deepcopy(user)
+        raise exceptions.UserNotFound
+
     def get_users_by_ids(self, user_ids: set[int]) -> dict[int, User]:
         users: dict[int, User] = {}
         for user_id in user_ids:
@@ -260,7 +272,7 @@ class SQLiteRepository(MatchRepository):
                 email="adam@adamson.com",
                 properties=json.dumps([]),
                 is_verified=True,
-                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
+                verification_code="3a86ddd8-a08e-56g4-98cg-55456c1g3g17",
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
             db_models.User(
@@ -270,7 +282,7 @@ class SQLiteRepository(MatchRepository):
                 email="gary@move.out",
                 properties=json.dumps([]),
                 is_verified=False,
-                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
+                verification_code="4b97eee9-b19f-67h5-09dh-66567d2h4h28",
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
             db_models.User(
@@ -280,7 +292,7 @@ class SQLiteRepository(MatchRepository):
                 email="garry@move.out",
                 properties=json.dumps([]),
                 is_verified=False,
-                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
+                verification_code="5ca8fffa-c2ag-78i6-1aei-77678e3i5i39",
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
         ]
@@ -398,6 +410,7 @@ class SQLiteRepository(MatchRepository):
             properties=json.loads(obj.properties),
             is_verified=obj.is_verified,
             verification_code=obj.verification_code,
+            password_hash=obj.password_hash,
         )
 
     def _get_user_by_id(self, user_id: int) -> db_models.User:
@@ -422,6 +435,7 @@ class SQLiteRepository(MatchRepository):
             properties=json.dumps(user.properties),
             is_verified=user.is_verified,
             verification_code=user.verification_code,
+            password_hash=user.password_hash,
             created_at=datetime.now(tz.utc),
         )
         self.session.add(db_model)
@@ -439,6 +453,7 @@ class SQLiteRepository(MatchRepository):
         db_obj.properties = json.dumps(user.properties)
         db_obj.is_verified = user.is_verified
         db_obj.verification_code = user.verification_code
+        db_obj.password_hash = user.password_hash
 
         self.session.commit()
         self.session.refresh(db_obj)
@@ -447,6 +462,24 @@ class SQLiteRepository(MatchRepository):
     def get_user_by_id(self, user_id: int) -> User:
         self._ensure_test_data()
         db_obj = self._get_user_by_id(user_id)
+        return self._user_to_domain(db_obj)
+
+    def get_user_by_email(self, email: str) -> User:
+        self._ensure_test_data()
+        statement = select(db_models.User).filter_by(email=email)
+        try:
+            db_obj = self.session.execute(statement).one()[0]
+        except sqlalchemy.orm.exc.NoResultFound:
+            raise exceptions.UserNotFound
+        return self._user_to_domain(db_obj)
+
+    def get_user_by_verification_code(self, verification_code: str) -> User:
+        self._ensure_test_data()
+        statement = select(db_models.User).filter_by(verification_code=verification_code)
+        try:
+            db_obj = self.session.execute(statement).one()[0]
+        except sqlalchemy.orm.exc.NoResultFound:
+            raise exceptions.UserNotFound
         return self._user_to_domain(db_obj)
 
     def get_users_by_ids(self, user_ids: set[int]) -> dict[int, User]:
