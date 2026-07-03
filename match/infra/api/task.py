@@ -94,38 +94,38 @@ def manage_task(
     task_id: int,
     action: str,
     helper_id: int | None = None,
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(verified_user),
     service: MatchService = Depends(get_service),
 ) -> dict:
     try:
         match action:
             case "join":
-                task = service.task_join(task_id, user_id)
+                task = service.task_join(task_id, user.id)
             case "approve":
                 if helper_id is None:
                     raise HTTPException(
                         status_code=HTTPStatus.BAD_REQUEST, detail="Helper id not provided."
                     )
-                task = service.task_approve(task_id, owner_id=user_id, helper_id=helper_id)
+                task = service.task_approve(task_id, owner_id=user.id, helper_id=helper_id)
             case "reject":
                 if helper_id is None:
                     raise HTTPException(
                         status_code=HTTPStatus.BAD_REQUEST, detail="Helper id not provided."
                     )
-                task = service.task_reject(task_id, owner_id=user_id, helper_id=helper_id)
+                task = service.task_reject(task_id, owner_id=user.id, helper_id=helper_id)
             case "close":
-                task = service.task_close(task_id, owner_id=user_id)
+                task = service.task_close(task_id, owner_id=user.id)
             case "report_success":
-                task = service.task_report_success(task_id, owner_id=user_id)
+                task = service.task_report_success(task_id, owner_id=user.id)
             case "report_failure":
-                task = service.task_report_failed(task_id, owner_id=user_id)
+                task = service.task_report_failed(task_id, owner_id=user.id)
 
             case _:
                 raise HTTPException(status_code=HTTPStatus.BAD_REQUEST)
     except PermissionDenied as e:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN,
-            detail=f"Permission denied for user {user_id}.{str(e)}",
+            detail=f"Permission denied for user {user}.{str(e)}",
         )
 
     return service.format_task_response(task)
