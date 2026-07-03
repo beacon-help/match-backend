@@ -30,7 +30,7 @@ def build_task_response(owner_id=100, task_id=1, status="open", helper_id=None):
 def test_get_task(test_client):
     task_id = 100
     expected = build_task_response(task_id=task_id)
-    response = test_client.get(f"task/{task_id}")
+    response = test_client.get(f"task/{task_id}", headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == expected

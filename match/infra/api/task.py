@@ -71,12 +71,12 @@ def public_task_to_dict(task: Task) -> dict:
 @router.post("/", response_model=TaskSchema, status_code=HTTPStatus.CREATED)
 def create_task(
     task_creation_params: TaskCreationRequestSchema,
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(verified_user),
     service: MatchService = Depends(get_service),
 ) -> dict:
     try:
         task = service.create_task(
-            user_id,
+            user.id,
             description=task_creation_params.description,
             title=task_creation_params.title,
             category=task_creation_params.category,
@@ -149,31 +149,11 @@ def list_task_locations(
 
 
 @router.get("/public", response_model=list[PublicTaskSchema])
-def list_tasks_public() -> list:
-    test_location = Location(lat=40.7128, lon=-74.0060, address="New York, NY")
-    tasks = [
-        Task(
-            id=1,
-            title="Help with groceries",
-            description="Need help carrying groceries upstairs.",
-            status=TaskStatus.OPEN,
-            owner_id=1,
-            helper_id=None,
-            category=Category.FOOD,
-            location=test_location,
-        ),
-        Task(
-            id=2,
-            title="Dog walking",
-            description="Looking for someone to walk my dog in the evenings.",
-            status=TaskStatus.PENDING,
-            owner_id=2,
-            helper_id=3,
-            category=Category.OTHER,
-            location=test_location,
-        ),
-    ]
-    return [public_task_to_dict(task) for task in tasks]
+def list_tasks_public(
+    request: Request,
+    service: MatchService = Depends(get_service),
+) -> list:
+    return service.get_tasks_response(filters=_task_filters_from_request(request))
 
 
 @router.get("/my-tasks", response_model=list[TaskSchema])
@@ -184,5 +164,7 @@ def get_my_tasks(
 
 
 @router.get("/{task_id}", response_model=TaskSchema)
-def get_task(task_id: int, service: MatchService = Depends(get_service)) -> dict:
+def get_task(
+    task_id: int, _: User = Depends(verified_user), service: MatchService = Depends(get_service)
+) -> dict:
     return service.get_task_response(task_id)
