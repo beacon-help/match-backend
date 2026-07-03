@@ -34,7 +34,7 @@ def test_get_user_me(test_client):
 
 def test_get_user_by_id(test_client):
     expected = build_user_response(100)
-    response = test_client.get("/user/100")
+    response = test_client.get("/user/100", headers=build_headers(101))
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == expected

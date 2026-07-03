@@ -7,7 +7,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import AuthenticationFailed, UserVerificationError
-from match.infra.api.auth import get_user_id
+from match.domain.user import User
+from match.infra.api.auth import verified_user
 from match.infra.api.schemas import (
     HelpseekerCreationRequestSchema,
     RefreshRequestSchema,
@@ -57,16 +58,16 @@ def refresh(params: RefreshRequestSchema) -> TokenSchema:
 
 @router.get("/me", response_model=UserSchema)
 def get_me(
-    user_id: int = Depends(get_user_id), service: MatchService = Depends(get_service)
+    user: User = Depends(verified_user)
 ) -> dict:
-    user = service.get_user_by_id(user_id)
-    if not user.is_verified:
-        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
+    # a trick is to use the User from auth
     return asdict(user)
 
 
 @router.get("/{user_id}", response_model=UserSchema)
-def get_user(user_id: int, service: MatchService = Depends(get_service)) -> dict:
+def get_user(
+    user_id: int, _: User = Depends(verified_user), service: MatchService = Depends(get_service)
+) -> dict:
     return asdict(service.get_user_by_id(user_id))
 
 

@@ -7,7 +7,7 @@ from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import PermissionDenied
 from match.domain.interfaces import TaskFilter
-from match.domain.task import Category, Location, LocationRadius, Task, TaskStatus
+from match.domain.task import Category, LocationRadius, Task, TaskStatus
 from match.domain.user import User
 from match.infra.api.auth import get_user_id, verified_user
 from match.infra.api.schemas import (
