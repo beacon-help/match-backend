@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr
 from pydantic_extra_types.coordinate import Latitude, Longitude
 
 from match.domain.user import VolunteerProperties
