@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import text
 
 from match.db import Session
+from match.infra.api.schemas import TaskAction
 from match.tests.conftest import build_headers
 
 
@@ -144,7 +145,7 @@ class TestUserTaskInteractions:
         self._add_task(session, task_id=task_id)
 
         join_response = test_client.put(
-            f"/task/{task_id}", params={"action": "join"}, headers=build_headers(user_2_id)
+            f"/task/{task_id}", params={"action": TaskAction.JOIN}, headers=build_headers(user_2_id)
         )
 
         assert join_response.status_code == HTTPStatus.OK
@@ -154,7 +155,7 @@ class TestUserTaskInteractions:
 
         approve_response = test_client.put(
             f"/task/{task_id}",
-            params={"action": "approve", "helper_id": user_2_id},
+            params={"action": TaskAction.APPROVE, "helper_id": user_2_id},
             headers=build_headers(user_1_id),
         )
 
@@ -165,7 +166,7 @@ class TestUserTaskInteractions:
 
         success_response = test_client.put(
             f"/task/{task_id}",
-            params={"action": "report_success"},
+            params={"action": TaskAction.REPORT_SUCCESS},
             headers=build_headers(user_1_id),
         )
 
@@ -184,7 +185,7 @@ class TestUserTaskInteractions:
         self._add_task(session, task_id=task_id)
 
         join_response = test_client.put(
-            f"/task/{task_id}", params={"action": "join"}, headers=build_headers(user_2_id)
+            f"/task/{task_id}", params={"action": TaskAction.JOIN}, headers=build_headers(user_2_id)
         )
 
         assert join_response.status_code == HTTPStatus.OK
@@ -194,7 +195,7 @@ class TestUserTaskInteractions:
 
         reject_response = test_client.put(
             f"/task/{task_id}",
-            params={"action": "reject", "helper_id": user_2_id},
+            params={"action": TaskAction.REJECT, "helper_id": user_2_id},
             headers=build_headers(user_1_id),
         )
 
@@ -204,7 +205,9 @@ class TestUserTaskInteractions:
         assert task["helper"] is None
 
         close_response = test_client.put(
-            f"/task/{task_id}", params={"action": "close"}, headers=build_headers(user_1_id)
+            f"/task/{task_id}",
+            params={"action": TaskAction.CLOSE},
+            headers=build_headers(user_1_id),
         )
 
         assert close_response.status_code == HTTPStatus.OK

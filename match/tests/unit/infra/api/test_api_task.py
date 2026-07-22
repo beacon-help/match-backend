@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import text
 
 from match.db import Session
+from match.infra.api.schemas import TaskAction
 from match.tests.conftest import build_headers
 
 
@@ -200,6 +201,8 @@ def test_join_task(test_client, user_id, expected_status):
         headers=build_headers(100),
     ).json()
     response = test_client.put(
-        f"/task/{str(new_task['id'])}", params={"action": "join"}, headers=build_headers(user_id)
+        f"/task/{str(new_task['id'])}",
+        params={"action": TaskAction.JOIN},
+        headers=build_headers(user_id),
     )
     assert response.status_code == expected_status

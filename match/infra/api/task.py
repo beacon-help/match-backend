@@ -12,6 +12,7 @@ from match.domain.user import User
 from match.infra.api.auth import get_user_id, verified_user
 from match.infra.api.schemas import (
     PublicTaskSchema,
+    TaskAction,
     TaskCreationRequestSchema,
     TaskLocationSchema,
     TaskSchema,
@@ -92,36 +93,33 @@ def create_task(
 @router.put("/{task_id}", response_model=TaskSchema)
 def manage_task(
     task_id: int,
-    action: str,
+    action: TaskAction,
     helper_id: int | None = None,
     user: User = Depends(verified_user),
     service: MatchService = Depends(get_service),
 ) -> dict:
     try:
         match action:
-            case "join":
+            case TaskAction.JOIN:
                 task = service.task_join(task_id, user.id)
-            case "approve":
+            case TaskAction.APPROVE:
                 if helper_id is None:
                     raise HTTPException(
                         status_code=HTTPStatus.BAD_REQUEST, detail="Helper id not provided."
                     )
                 task = service.task_approve(task_id, owner_id=user.id, helper_id=helper_id)
-            case "reject":
+            case TaskAction.REJECT:
                 if helper_id is None:
                     raise HTTPException(
                         status_code=HTTPStatus.BAD_REQUEST, detail="Helper id not provided."
                     )
                 task = service.task_reject(task_id, owner_id=user.id, helper_id=helper_id)
-            case "close":
+            case TaskAction.CLOSE:
                 task = service.task_close(task_id, owner_id=user.id)
-            case "report_success":
+            case TaskAction.REPORT_SUCCESS:
                 task = service.task_report_success(task_id, owner_id=user.id)
-            case "report_failure":
+            case TaskAction.REPORT_FAILURE:
                 task = service.task_report_failed(task_id, owner_id=user.id)
-
-            case _:
-                raise HTTPException(status_code=HTTPStatus.BAD_REQUEST)
     except PermissionDenied as e:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN,

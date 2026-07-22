@@ -57,9 +57,7 @@ def refresh(params: RefreshRequestSchema) -> TokenSchema:
 
 
 @router.get("/me", response_model=UserSchema)
-def get_me(
-    user: User = Depends(verified_user)
-) -> dict:
+def get_me(user: User = Depends(verified_user)) -> dict:
     # a trick is to use the User from auth
     return asdict(user)
 

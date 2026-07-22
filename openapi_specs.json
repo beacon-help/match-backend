@@ -186,6 +186,18 @@
         "title": "RefreshRequestSchema",
         "type": "object"
       },
+      "TaskAction": {
+        "enum": [
+          "join",
+          "approve",
+          "reject",
+          "close",
+          "report_success",
+          "report_failure"
+        ],
+        "title": "TaskAction",
+        "type": "string"
+      },
       "TaskCreationRequestSchema": {
         "properties": {
           "category": {
@@ -767,8 +779,7 @@
             "name": "action",
             "required": true,
             "schema": {
-              "title": "Action",
-              "type": "string"
+              "$ref": "#/components/schemas/TaskAction"
             }
           },
           {

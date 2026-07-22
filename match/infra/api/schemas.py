@@ -1,3 +1,4 @@
+import enum
 from datetime import datetime
 from enum import Enum
 
@@ -97,3 +98,12 @@ class TaskSchema(BaseModel):
 class TaskLocationSchema(BaseModel):
     id: int
     location: Location
+
+
+class TaskAction(enum.StrEnum):
+    JOIN = "join"
+    APPROVE = "approve"
+    REJECT = "reject"
+    CLOSE = "close"
+    REPORT_SUCCESS = "report_success"
+    REPORT_FAILURE = "report_failure"
