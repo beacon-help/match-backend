@@ -63,6 +63,26 @@ def _build_users() -> list[db_models.User]:
             password_hash=hash_password("password123"),
             created_at=now,
         ),
+        db_models.User(
+            first_name="Volunteer",
+            last_name="User",
+            email="volunteer@verified.com",
+            properties=json.dumps([VolunteerProperties.has_car.value]),
+            is_verified=True,
+            verification_code="volunteer-verified",
+            password_hash=hash_password("Password"),
+            created_at=now,
+        ),
+        db_models.User(
+            first_name="Help",
+            last_name="Seeker",
+            email="help-seeker@verified.com",
+            properties=json.dumps([]),
+            is_verified=True,
+            verification_code="help-seeker-verified",
+            password_hash=hash_password("Password"),
+            created_at=now,
+        ),
     ]
 
 

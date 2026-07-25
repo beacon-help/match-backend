@@ -22,6 +22,10 @@ bash:
 	make up
 	docker compose exec -it $(SERVICE) bash
 
+db-shell:
+	make up
+	docker compose exec -it $(SERVICE) sqlite3 /usr/src/app/data/app.db
+
 test:
 	@if [ "$(word 2,$(MAKECMDGOALS))" = "unit" ]; then \
 		docker compose run $(SERVICE) uv run pytest match/tests/unit/ -v; \
@@ -62,3 +66,8 @@ gen-specs:
 
 populate-test-data:
 	docker compose run $(SERVICE) uv run python scripts/populate_test_data.py
+
+recreate-test-db:
+	make reset-db
+	make upgrade
+	make populate-test-data
