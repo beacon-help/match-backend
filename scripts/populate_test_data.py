@@ -10,12 +10,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from match.config import Environment, get_config  # noqa: E402
-from match.db import Session  # noqa: E402
-from match.domain.task import Category, TaskStatus  # noqa: E402
-from match.domain.user import VolunteerProperties  # noqa: E402
-from match.infra import db_models  # noqa: E402
-from match.infra.api.security import hash_password  # noqa: E402
+from match.config import Environment, get_config
+from match.db import Session
+from match.domain.task import Category, TaskStatus
+from match.domain.user import VolunteerProperties
+from match.infra import db_models
+from match.infra.api.security import hash_password
 
 ALLOWED_ENVS = (Environment.TEST, Environment.DEV)
 
