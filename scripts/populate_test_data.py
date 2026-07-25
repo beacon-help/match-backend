@@ -70,13 +70,64 @@ def _build_tasks(owner_id: int, helper_id: int) -> list[db_models.Task]:
     now = datetime.now(tz.utc)
     statuses: list[TaskStatus] = list(TaskStatus)
     categories: list[Category] = list(Category)
+    task_data = [
+        {
+            "title": "Help with grocery shopping",
+            "lat": 39.4699,
+            "lon": -0.3763,
+            "address": "Valencia City Center, Spain",
+        },
+        {
+            "title": "Garden maintenance needed",
+            "lat": 39.4550,
+            "lon": -0.3840,
+            "address": "Ruzafa, Valencia, Spain",
+        },
+        {
+            "title": "Moving assistance required",
+            "lat": 39.3700,
+            "lon": -0.3200,
+            "address": "El Cabanyal, Valencia, Spain",
+        },
+        {
+            "title": "House cleaning service",
+            "lat": 39.5500,
+            "lon": -0.7500,
+            "address": "Bétera, Valencia, Spain",
+        },
+        {
+            "title": "Furniture assembly help",
+            "lat": 39.5200,
+            "lon": -0.4200,
+            "address": "Almàssera, Valencia, Spain",
+        },
+        {
+            "title": "Yard work and landscaping",
+            "lat": 39.4100,
+            "lon": -0.3800,
+            "address": "Sedaví, Valencia, Spain",
+        },
+        {
+            "title": "Home repair assistance",
+            "lat": 39.3900,
+            "lon": -0.4100,
+            "address": "Picanya, Valencia, Spain",
+        },
+        {
+            "title": "Elderly care support",
+            "lat": 39.4900,
+            "lon": -0.4100,
+            "address": "La Torre, Valencia, Spain",
+        },
+    ]
     tasks = []
     for i, status in enumerate(statuses):
         category = categories[i % len(categories)]
         has_helper = status != TaskStatus.OPEN
+        data = task_data[i % len(task_data)]
         tasks.append(
             db_models.Task(
-                title=f"Task {status.value}",
+                title=data["title"],
                 description=f"A task with status {status.value}",
                 owner_id=owner_id,
                 helper_id=helper_id if has_helper else None,
@@ -84,9 +135,9 @@ def _build_tasks(owner_id: int, helper_id: int) -> list[db_models.Task]:
                 category=category.value,
                 updated_at=now if has_helper else None,
                 created_at=now,
-                location_lat=40.7128,
-                location_lon=-74.0060,
-                location_address="New York, NY",
+                location_lat=data["lat"],
+                location_lon=data["lon"],
+                location_address=data["address"],
             )
         )
     return tasks
