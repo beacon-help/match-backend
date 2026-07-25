@@ -10,7 +10,7 @@ build:
 ps:
 	docker compose ps
 up:
-	docker compose up -d
+	docker compose up
 
 stop:
 	docker compose stop

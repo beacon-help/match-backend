@@ -1,6 +1,7 @@
 import sentry_sdk
 import uvicorn
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from match.bootstrap import get_service
 from match.config import Config, Environment, get_config
@@ -21,6 +22,16 @@ def configure_routing(app: FastAPI) -> None:
     )
     app.include_router(
         task_api, prefix=TASK_PREFIX, dependencies=[Depends(get_service)], tags=["task"]
+    )
+
+
+def configure_cors(app: FastAPI) -> None:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
 
@@ -47,6 +58,8 @@ def create_app() -> FastAPI:
     debug = config.ENV == Environment.DEV
 
     app = FastAPI(debug=debug)
+
+    configure_cors(app)
 
     db_models.Base.metadata.create_all(bind=engine)
     configure_routing(app)
