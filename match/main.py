@@ -1,3 +1,6 @@
+import tomllib
+from pathlib import Path
+
 import sentry_sdk
 import uvicorn
 from fastapi import Depends, FastAPI
@@ -13,6 +16,13 @@ from match.infra.api.user import router as user_api
 
 USER_PREFIX = "/user"
 TASK_PREFIX = "/task"
+
+
+def load_project_metadata() -> tuple[str, str]:
+    pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        data = tomllib.load(f)
+    return data["project"]["name"], data["project"]["version"]
 
 
 def configure_routing(app: FastAPI) -> None:
@@ -57,7 +67,8 @@ def create_app() -> FastAPI:
         )
     debug = config.ENV == Environment.DEV
 
-    app = FastAPI(debug=debug)
+    project_name, project_version = load_project_metadata()
+    app = FastAPI(title=project_name, version=project_version, debug=debug)
 
     configure_cors(app)
 
