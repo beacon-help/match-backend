@@ -68,8 +68,8 @@ def _build_users() -> list[db_models.User]:
 
 def _build_tasks(owner_id: int, helper_id: int) -> list[db_models.Task]:
     now = datetime.now(tz.utc)
-    statuses = list(TaskStatus)
-    categories = list(Category)
+    statuses: list[TaskStatus] = list(TaskStatus)
+    categories: list[Category] = list(Category)
     tasks = []
     for i, status in enumerate(statuses):
         category = categories[i % len(categories)]

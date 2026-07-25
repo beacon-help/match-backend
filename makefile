@@ -10,7 +10,7 @@ build:
 ps:
 	docker compose ps
 up:
-	docker compose up
+	docker compose up -d
 
 stop:
 	docker compose stop
@@ -59,3 +59,6 @@ reset-db:
 
 gen-specs:
 	docker compose run $(SERVICE) uv run python scripts/generate_openapi.py --output $(OPENAPI_OUTPUT)
+
+populate-test-data:
+	docker compose run $(SERVICE) uv run python scripts/populate_test_data.py

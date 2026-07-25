@@ -1,2 +1,2 @@
 #!/bin/bash
-uv run black ./match $@ --config pyproject.toml
+uv run black ./match ./scripts $@ --config pyproject.toml
