@@ -11,7 +11,7 @@ from sqlalchemy.orm.session import Session as SQLAlchemySession
 from match.domain import exceptions
 from match.domain.interfaces import MatchRepository, TaskFilter
 from match.domain.task import Category, Location, Task, TaskStatus
-from match.domain.user import User
+from match.domain.user import User, UserType
 from match.infra import db_models
 
 EARTH_RADIUS_KM = 6371.0088
@@ -58,34 +58,38 @@ class InMemoryMatchRepository(MatchRepository):
     def _setup_test_data(self) -> None:
         test_users = {
             100: User(
-                100,
-                "John",
-                "Johnson",
-                "john@johnson.com",
+                id=100,
+                user_type=UserType.VOLUNTEER,
+                first_name="John",
+                last_name="Johnson",
+                email="john@johnson.com",
                 is_verified=True,
                 verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
             ),
             101: User(
-                101,
-                "Adam",
-                "Adamson",
-                "adam@adamson.com",
+                id=101,
+                user_type=UserType.HELP_SEEKER,
+                first_name="Adam",
+                last_name="Adamson",
+                email="adam@adamson.com",
                 is_verified=True,
                 verification_code="3a86ddd8-a08e-56g4-98cg-55456c1g3g17",
             ),
             102: User(
-                102,
-                "Gary",
-                "Moveout",
-                "gary@move.out",
+                id=102,
+                user_type=UserType.HELP_SEEKER,
+                first_name="Gary",
+                last_name="Moveout",
+                email="gary@move.out",
                 is_verified=False,
                 verification_code="4b97eee9-b19f-67h5-09dh-66567d2h4h28",
             ),
             103: User(
-                101,
-                "Garry",
-                "Moveout",
-                "garry@move.out",
+                id=101,
+                user_type=UserType.VOLUNTEER,
+                first_name="Garry",
+                last_name="Moveout",
+                email="garry@move.out",
                 is_verified=False,
                 verification_code="5ca8fffa-c2ag-78i6-1aei-77678e3i5i39",
             ),
@@ -257,6 +261,7 @@ class SQLiteRepository(MatchRepository):
         test_users = [
             db_models.User(
                 id=100,
+                user_type=UserType.VOLUNTEER,
                 first_name="John",
                 last_name="Johnson",
                 email="john@johnson.com",
@@ -266,6 +271,7 @@ class SQLiteRepository(MatchRepository):
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
             db_models.User(
+                user_type=UserType.HELP_SEEKER,
                 id=101,
                 first_name="Adam",
                 last_name="Adamson",
@@ -277,6 +283,7 @@ class SQLiteRepository(MatchRepository):
             ),
             db_models.User(
                 id=102,
+                user_type=UserType.HELP_SEEKER,
                 first_name="Gary",
                 last_name="Moveout",
                 email="gary@move.out",
@@ -287,6 +294,7 @@ class SQLiteRepository(MatchRepository):
             ),
             db_models.User(
                 id=103,
+                user_type=UserType.VOLUNTEER,
                 first_name="Garry",
                 last_name="Moveout",
                 email="garry@move.out",
@@ -404,6 +412,7 @@ class SQLiteRepository(MatchRepository):
     def _user_to_domain(obj: db_models.User) -> User:
         return User(
             id=obj.id,
+            user_type=obj.user_type,
             first_name=obj.first_name,
             last_name=obj.last_name,
             email=obj.email,
@@ -429,6 +438,7 @@ class SQLiteRepository(MatchRepository):
         if existing_user is not None:
             return self._user_to_domain(existing_user)
         db_model = db_models.User(
+            user_type=user.user_type,
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,

@@ -387,10 +387,14 @@
           "last_name": {
             "title": "Last Name",
             "type": "string"
+          },
+          "user_type": {
+            "$ref": "#/components/schemas/UserType"
           }
         },
         "required": [
           "id",
+          "user_type",
           "first_name",
           "last_name",
           "email",
@@ -398,6 +402,14 @@
         ],
         "title": "UserSchema",
         "type": "object"
+      },
+      "UserType": {
+        "enum": [
+          "help-seeker",
+          "volunteer"
+        ],
+        "title": "UserType",
+        "type": "string"
       },
       "ValidationError": {
         "properties": {

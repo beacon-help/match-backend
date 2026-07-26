@@ -5,7 +5,7 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, EmailStr
 from pydantic_extra_types.coordinate import Latitude, Longitude
 
-from match.domain.user import VolunteerProperties
+from match.domain.user import UserType, VolunteerProperties
 
 
 class UserCreationBaseSchema(BaseModel):
@@ -27,6 +27,7 @@ class VolunteerCreationRequestSchema(UserCreationBaseSchema):
 
 class UserSchema(BaseModel):
     id: int
+    user_type: UserType
     first_name: str
     last_name: str
     email: EmailStr

@@ -11,6 +11,7 @@ from match.tests.unit.infra.api.conftest import SEED_PASSWORD, VALID_VERIF_CODE
 def build_user_response(user_id=100):
     return {
         "id": user_id,
+        "user_type": "volunteer",
         "first_name": "John",
         "last_name": "Johnson",
         "email": "john@johnson.com",

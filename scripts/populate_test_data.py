@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 from match.config import Environment, get_config
 from match.db import Session
 from match.domain.task import Category, TaskStatus
-from match.domain.user import VolunteerProperties
+from match.domain.user import UserType, VolunteerProperties
 from match.infra import db_models
 from match.infra.api.security import hash_password
 
@@ -24,6 +24,7 @@ def _build_users() -> list[db_models.User]:
     now = datetime.now(tz.utc)
     return [
         db_models.User(
+            user_type=UserType.VOLUNTEER,
             first_name="Verified",
             last_name="WithPassword",
             email="verified.password@example.com",
@@ -34,6 +35,7 @@ def _build_users() -> list[db_models.User]:
             created_at=now,
         ),
         db_models.User(
+            user_type=UserType.VOLUNTEER,
             first_name="Verified",
             last_name="NoPassword",
             email="verified.nopassword@example.com",
@@ -44,6 +46,7 @@ def _build_users() -> list[db_models.User]:
             created_at=now,
         ),
         db_models.User(
+            user_type=UserType.HELP_SEEKER,
             first_name="Unverified",
             last_name="Pending",
             email="unverified.pending@example.com",
@@ -54,6 +57,7 @@ def _build_users() -> list[db_models.User]:
             created_at=now,
         ),
         db_models.User(
+            user_type=UserType.VOLUNTEER,
             first_name="Volunteer",
             last_name="AllProperties",
             email="volunteer.all@example.com",
@@ -64,6 +68,7 @@ def _build_users() -> list[db_models.User]:
             created_at=now,
         ),
         db_models.User(
+            user_type=UserType.VOLUNTEER,
             first_name="Volunteer",
             last_name="User",
             email="volunteer@verified.com",
@@ -74,6 +79,7 @@ def _build_users() -> list[db_models.User]:
             created_at=now,
         ),
         db_models.User(
+            user_type=UserType.HELP_SEEKER,
             first_name="Help",
             last_name="Seeker",
             email="help-seeker@verified.com",
@@ -84,6 +90,7 @@ def _build_users() -> list[db_models.User]:
             created_at=now,
         ),
         db_models.User(
+            user_type=UserType.HELP_SEEKER,
             first_name="Help",
             last_name="Seeker Plus",
             email="help-seeker+t@verified.com",

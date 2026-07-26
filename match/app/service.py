@@ -4,7 +4,7 @@ from typing import Any, Iterable
 from match.domain.exceptions import AuthenticationFailed, UserNotFound, UserVerificationCodeInvalid
 from match.domain.interfaces import MatchRepository, MessageClient, TaskFilter
 from match.domain.task import Category, Location, Task
-from match.domain.user import User, create_user_verification_message
+from match.domain.user import User, UserType, create_user_verification_message
 from match.infra.api.security import hash_password, verify_password
 
 VERIFICATION_URL = "localhost:8000/user/verify/"
@@ -17,6 +17,7 @@ class MatchService:
 
     def _create_user(
         self,
+        user_type: UserType,
         first_name: str,
         last_name: str,
         email: str,
@@ -24,6 +25,7 @@ class MatchService:
         properties: Iterable[Any],
     ) -> User:
         user_data = {
+            "user_type": user_type,
             "first_name": first_name,
             "last_name": last_name,
             "email": email,
@@ -36,13 +38,16 @@ class MatchService:
 
     def create_user(
         self,
+        user_type: UserType,
         first_name: str,
         last_name: str,
         email: str,
         password: str,
         properties: Iterable[Any] = (),
     ) -> User:
-        return self._create_user(first_name, last_name, email, password, properties=properties)
+        return self._create_user(
+            user_type, first_name, last_name, email, password, properties=properties
+        )
 
     def authenticate(self, email: str, password: str) -> User:
         try:

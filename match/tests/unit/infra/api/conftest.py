@@ -18,12 +18,12 @@ def populate_db():
     session.execute(text(clear_statement))
     users_statement = """
         INSERT OR REPLACE INTO users (
-            id, first_name, last_name, email, properties, is_verified, verification_code, password_hash, created_at
+            id, user_type, first_name, last_name, email, properties, is_verified, verification_code, password_hash, created_at
         ) VALUES
-            (100, 'John', 'Johnson', 'john@johnson.com', '[]', 1, :code_100, :pw, '2024-11-14T00:00:00Z'),
-            (101, 'Adam', 'Adamson', 'adam@adamson.com', '[]', 1, :code_101, :pw, '2024-11-14T00:00:00Z'),
-            (102, 'Gary', 'Moveout', 'gary@move.out', '[]', 0, :code_102, :pw, '2024-11-14T00:00:00Z'),
-            (103, 'Garry', 'Moveout', 'garry@move.out', '[]', 0, :code_103, :pw, '2024-11-14T00:00:00Z');
+            (100, 'VOLUNTEER', 'John', 'Johnson', 'john@johnson.com', '[]', 1, :code_100, :pw, '2024-11-14T00:00:00Z'),
+            (101, 'HELP_SEEKER', 'Adam', 'Adamson', 'adam@adamson.com', '[]', 1, :code_101, :pw, '2024-11-14T00:00:00Z'),
+            (102, 'HELP_SEEKER', 'Gary', 'Moveout', 'gary@move.out', '[]', 0, :code_102, :pw, '2024-11-14T00:00:00Z'),
+            (103, 'VOLUNTEER', 'Garry', 'Moveout', 'garry@move.out', '[]', 0, :code_103, :pw, '2024-11-14T00:00:00Z');
         """
     statement = """
         INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)

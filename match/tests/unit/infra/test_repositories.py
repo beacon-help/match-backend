@@ -1,7 +1,7 @@
 import pytest
 
 from match.domain.task import TaskStatus
-from match.domain.user import User
+from match.domain.user import User, UserType
 from match.infra.repositories import InMemoryMatchRepository
 
 
@@ -13,6 +13,7 @@ def in_memory_user_repository():
 def test_create_user(in_memory_user_repository):
     repository = in_memory_user_repository
     user_data = {
+        "user_type": UserType.HELP_SEEKER,
         "first_name": "Adam",
         "last_name": "Ondra",
         "email": "adam@example.com",
@@ -25,6 +26,7 @@ def test_create_user(in_memory_user_repository):
     user = repository.users[1]
     assert user == User(
         id=1,
+        user_type=UserType.HELP_SEEKER,
         first_name="Adam",
         last_name="Ondra",
         email="adam@example.com",

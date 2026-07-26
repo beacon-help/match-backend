@@ -3,11 +3,12 @@ from uuid import uuid4
 import pytest
 
 from match.domain import exceptions as domain_exceptions
-from match.domain.user import User
+from match.domain.user import User, UserType
 
 
 def build_user(
     id,
+    user_type=UserType.HELP_SEEKER,
     first_name="John",
     last_name="Test",
     email="test@me.com",
@@ -16,6 +17,7 @@ def build_user(
 ):
     return User(
         id=id,
+        user_type=user_type,
         first_name=first_name,
         last_name=last_name,
         email=email,

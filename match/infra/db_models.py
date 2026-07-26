@@ -4,12 +4,14 @@ from sqlalchemy import CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from match.db import Base
+from match.domain.user import UserType
 
 
 class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True, autoincrement="auto")
+    user_type: Mapped[UserType] = mapped_column()
     first_name: Mapped[str] = mapped_column()
     last_name: Mapped[str] = mapped_column()
     email: Mapped[str] = mapped_column(unique=True)

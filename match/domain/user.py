@@ -1,6 +1,6 @@
 import uuid
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, StrEnum
 
 from match.domain.exceptions import UserNotPendingVerification, UserVerificationCodeInvalid
 
@@ -12,9 +12,15 @@ def generate_uuid_as_str() -> str:
 UserId = int
 
 
+class UserType(StrEnum):
+    HELP_SEEKER = "help-seeker"
+    VOLUNTEER = "volunteer"
+
+
 @dataclass
 class User:
     id: UserId
+    user_type: UserType
     first_name: str
     last_name: str
     email: str

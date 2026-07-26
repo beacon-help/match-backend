@@ -73,11 +73,11 @@ class TestUserTaskInteractions:
         clear_statement = "DELETE FROM tasks;"
         user_stmt = """
         INSERT OR REPLACE INTO users (
-            id, first_name, last_name, email, properties, is_verified, verification_code, created_at
+            id, user_type, first_name, last_name, email, properties, is_verified, verification_code, created_at
         ) VALUES
-            (1, 'John', 'Johnson', 'john@johnson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
-            (2, 'Adam', 'Adamson', 'adam@adamson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
-            (3, 'Gary', 'Moveout', 'gary@move.out', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z');
+            (1, 'VOLUNTEER', 'John', 'Johnson', 'john@johnson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
+            (2, 'HELP_SEEKER', 'Adam', 'Adamson', 'adam@adamson.com', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z'),
+            (3, 'HELP_SEEKER', 'Gary', 'Moveout', 'gary@move.out', '[]', 1, '2f75ccc7-9f7d-45f3-87bf-44345b0f2f06', '2024-11-14T00:00:00Z');
         """
         session.execute(text(clear_users_statement))
         session.execute(text(clear_statement))

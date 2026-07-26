@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import AuthenticationFailed, UserVerificationError
-from match.domain.user import User
+from match.domain.user import User, UserType
 from match.infra.api.auth import verified_user
 from match.infra.api.schemas import (
     HelpseekerCreationRequestSchema,
@@ -74,7 +74,7 @@ def create_helpseeker_user(
     user_creation_params: HelpseekerCreationRequestSchema,
     service: MatchService = Depends(get_service),
 ) -> dict:
-    user = service.create_user(**user_creation_params.model_dump())
+    user = service.create_user(**user_creation_params.model_dump(), user_type=UserType.HELP_SEEKER)
     service.send_verification_request(user)
     return asdict(user)
 
@@ -84,7 +84,7 @@ def create_volunteer_user(
     user_creation_params: VolunteerCreationRequestSchema,
     service: MatchService = Depends(get_service),
 ) -> dict:
-    user = service.create_user(**user_creation_params.model_dump())
+    user = service.create_user(**user_creation_params.model_dump(), user_type=UserType.VOLUNTEER)
     service.send_verification_request(user)
     return asdict(user)
 
