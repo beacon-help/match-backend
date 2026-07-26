@@ -83,6 +83,16 @@ def _build_users() -> list[db_models.User]:
             password_hash=hash_password("Password"),
             created_at=now,
         ),
+        db_models.User(
+            first_name="Help",
+            last_name="Seeker Plus",
+            email="help-seeker+t@verified.com",
+            properties=json.dumps([]),
+            is_verified=True,
+            verification_code="help-seeker-plus-verified",
+            password_hash=hash_password("Password"),
+            created_at=now,
+        ),
     ]
 
 
@@ -180,6 +190,10 @@ def main() -> None:
 
         tasks = _build_tasks(owner_id=users[0].id, helper_id=users[1].id)
         for task in tasks:
+            session.add(task)
+
+        new_user_tasks = _build_tasks(owner_id=users[6].id, helper_id=users[1].id)
+        for task in new_user_tasks:
             session.add(task)
 
         session.commit()
