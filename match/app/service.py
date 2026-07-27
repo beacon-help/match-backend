@@ -1,7 +1,12 @@
 from dataclasses import asdict, dataclass
 from typing import Any, Iterable
 
-from match.domain.exceptions import AuthenticationFailed, UserNotFound, UserVerificationCodeInvalid
+from match.domain.exceptions import (
+    AuthenticationFailed,
+    MatchServiceException,
+    UserNotFound,
+    UserVerificationCodeInvalid,
+)
 from match.domain.interfaces import MatchRepository, MessageClient, TaskFilter
 from match.domain.task import Category, Location, Task
 from match.domain.user import User, UserType, create_user_verification_message
@@ -97,9 +102,9 @@ class MatchService:
             raise Exception("Incorrect location.")
 
         try:
-            category_enum = Category(category)
+            category_enum = Category(category.lower())
         except ValueError:
-            raise Exception("Incorrect category")
+            raise MatchServiceException(f"Incorrect category {category}.")
         task = Task.create_task(
             owner=user,
             title=title,
