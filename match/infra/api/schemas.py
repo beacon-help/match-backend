@@ -2,9 +2,10 @@ import enum
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, EmailStr, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr
 from pydantic_extra_types.coordinate import Latitude, Longitude
 
+from match.domain.task import Category
 from match.domain.user import UserType, VolunteerProperties
 
 
@@ -66,14 +67,14 @@ class Location(BaseModel):
 class TaskCreationRequestSchema(BaseModel):
     title: str
     description: str
-    category: str
+    category: Category
     location: Location
 
 
 class TaskEditRequestSchema(BaseModel):
     title: str
     description: str
-    category: str
+    category: Category
     location: Location | None
 
 
@@ -82,7 +83,7 @@ class PublicTaskSchema(BaseModel):
     title: str
     status: TaskStatus
     location: Location
-    category: str
+    category: Category
 
 
 class TaskUserSchema(BaseModel):
@@ -100,7 +101,7 @@ class TaskSchema(BaseModel):
     helper: TaskUserSchema | None
     description: str
     location: Location
-    category: str
+    category: Category
 
 
 class TaskLocationSchema(BaseModel):

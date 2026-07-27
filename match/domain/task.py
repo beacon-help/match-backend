@@ -17,12 +17,13 @@ class TaskStatus(StrEnum):
 
 
 class Category(StrEnum):
-    TRANSPORT = "transport"
+    TRANSPORT = "transport people"
     FOOD = "food"
     ACCOMMODATION = "accommodation"
     CLOTHES = "clothes"
-    MAN_POWER = "man power"
-    DROP_DOWN_ITEM = "dropdown item"
+    MEDICAL_HELP = "medical help"
+    CLEAN = "clean"
+    REPAIR = "repair"
     OTHER = "other"
 
 

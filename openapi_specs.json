@@ -58,6 +58,20 @@
         "title": "Body_login_user_login_post",
         "type": "object"
       },
+      "Category": {
+        "enum": [
+          "transport people",
+          "food",
+          "accommodation",
+          "clothes",
+          "medical help",
+          "clean",
+          "repair",
+          "other"
+        ],
+        "title": "Category",
+        "type": "string"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -145,8 +159,7 @@
       "PublicTaskSchema": {
         "properties": {
           "category": {
-            "title": "Category",
-            "type": "string"
+            "$ref": "#/components/schemas/Category"
           },
           "id": {
             "title": "Id",
@@ -201,8 +214,7 @@
       "TaskCreationRequestSchema": {
         "properties": {
           "category": {
-            "title": "Category",
-            "type": "string"
+            "$ref": "#/components/schemas/Category"
           },
           "description": {
             "title": "Description",
@@ -228,8 +240,7 @@
       "TaskEditRequestSchema": {
         "properties": {
           "category": {
-            "title": "Category",
-            "type": "string"
+            "$ref": "#/components/schemas/Category"
           },
           "description": {
             "title": "Description",
@@ -279,8 +290,7 @@
       "TaskSchema": {
         "properties": {
           "category": {
-            "title": "Category",
-            "type": "string"
+            "$ref": "#/components/schemas/Category"
           },
           "created_at": {
             "format": "date-time",
