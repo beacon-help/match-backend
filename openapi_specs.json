@@ -193,8 +193,7 @@
           "reject",
           "close",
           "report_success",
-          "report_failure",
-          "edit"
+          "report_failure"
         ],
         "title": "TaskAction",
         "type": "string"

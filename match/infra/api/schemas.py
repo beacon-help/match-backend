@@ -115,4 +115,3 @@ class TaskAction(enum.StrEnum):
     CLOSE = "close"
     REPORT_SUCCESS = "report_success"
     REPORT_FAILURE = "report_failure"
-    EDIT = "edit"
