@@ -201,8 +201,96 @@ def test_join_task(test_client, user_id, expected_status):
         headers=build_headers(100),
     ).json()
     response = test_client.put(
-        f"/task/{str(new_task['id'])}",
+        f"/task/{str(new_task['id'])}/manage",
         params={"action": TaskAction.JOIN},
         headers=build_headers(user_id),
     )
     assert response.status_code == expected_status
+
+
+UPDATE_PAYLOAD = {
+    "title": "new title",
+    "description": "new description",
+    "category": "food",
+    "location": {"lat": 39.4738, "lon": 0.3756, "address": "New address"},
+}
+
+
+def test_edit_task_happy_path(test_client):
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
+        headers=build_headers(100),
+    ).json()
+
+    response = test_client.put(
+        f"/task/{new_task['id']}/edit",
+        params={"action": "edit"},
+        json=UPDATE_PAYLOAD,
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    task = response.json()
+    assert task["title"] == "new title"
+    assert task["description"] == "new description"
+    assert task["category"] == "food"
+    assert task["location"] == {"lat": 39.4738, "lon": 0.3756, "address": "New address"}
+
+
+def test_edit_task_partial_location_raises(test_client):
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
+        headers=build_headers(100),
+    ).json()
+
+    response = test_client.put(
+        f"/task/{new_task['id']}/edit",
+        params={"action": "edit"},
+        json={"location": {"lat": 40.7128, "lon": -74.0060}},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == 422
+
+
+def test_edit_task_rejects_non_owner(test_client):
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
+        headers=build_headers(100),
+    ).json()
+
+    response = test_client.put(
+        f"/task/{new_task['id']}/edit",
+        json=UPDATE_PAYLOAD,
+        headers=build_headers(101),
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_edit_task_not_found(test_client):
+    response = test_client.put(
+        "/task/999999/edit",
+        json=UPDATE_PAYLOAD,
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND

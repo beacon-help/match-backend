@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from match.app.service import MatchService
 from match.bootstrap import get_service
-from match.domain.exceptions import PermissionDenied
+from match.domain.exceptions import (
+    InvalidTaskAction,
+    MatchServiceException,
+    PermissionDenied,
+    TaskNotFound,
+)
 from match.domain.interfaces import TaskFilter
 from match.domain.task import Category, LocationRadius, Task, TaskStatus
 from match.domain.user import User
@@ -14,6 +19,7 @@ from match.infra.api.schemas import (
     PublicTaskSchema,
     TaskAction,
     TaskCreationRequestSchema,
+    TaskEditRequestSchema,
     TaskLocationSchema,
     TaskSchema,
 )
@@ -90,7 +96,36 @@ def create_task(
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
 
 
-@router.put("/{task_id}", response_model=TaskSchema)
+@router.put("/{task_id}/edit", response_model=TaskSchema)
+def edit_task(
+    task_id: int,
+    task_edit_params: TaskEditRequestSchema,
+    user: User = Depends(verified_user),
+    service: MatchService = Depends(get_service),
+) -> dict:
+    location = task_edit_params.location
+    try:
+        task = service.task_edit(
+            task_id,
+            owner_id=user.id,
+            title=task_edit_params.title,
+            description=task_edit_params.description,
+            category=task_edit_params.category,
+            location_lon=location.lon if location else None,
+            location_lat=location.lat if location else None,
+            location_address=location.address if location else None,
+        )
+    except TaskNotFound:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
+    except InvalidTaskAction as e:
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
+    except MatchServiceException:
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST)
+
+    return service.format_task_response(task)
+
+
+@router.put("/{task_id}/manage", response_model=TaskSchema)
 def manage_task(
     task_id: int,
     action: TaskAction,

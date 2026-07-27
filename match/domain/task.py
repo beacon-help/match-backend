@@ -140,6 +140,29 @@ class Task:
         self.status = TaskStatus.FAILED
         self._post_task_update()
 
+    def edit(
+        self,
+        user: User,
+        title: str | None = None,
+        description: str | None = None,
+        category: Category | None = None,
+        location: Location | None = None,
+    ) -> None:
+        try:
+            self._validate_owner(user)
+        except NotAnOwner as e:
+            raise InvalidTaskAction from e
+
+        if title is not None:
+            self.title = title
+        if description is not None:
+            self.description = description
+        if category is not None:
+            self.category = category
+        if location is not None:
+            self.location = location
+        self._post_task_update()
+
     def close(self, user: User) -> None:
         try:
             self._validate_owner(user)

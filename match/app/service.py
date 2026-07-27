@@ -194,6 +194,43 @@ class MatchService:
         task = self.repository.task_update(task)
         return task
 
+    def task_edit(
+        self,
+        task_id: int,
+        owner_id: int,
+        title: str | None = None,
+        description: str | None = None,
+        category: str | None = None,
+        location_lon: float | None = None,
+        location_lat: float | None = None,
+        location_address: str | None = None,
+    ) -> Task:
+        task = self.get_task_by_id(task_id)
+        owner = self.get_user_by_id(owner_id)
+
+        category_enum = None
+        if category is not None:
+            try:
+                category_enum = Category(category.lower())
+            except ValueError:
+                raise MatchServiceException(f"Incorrect category {category}.")
+
+        location = None
+        if location_lat is not None and location_lon is not None and location_address is not None:
+            location = Location(lon=location_lon, lat=location_lat, address=location_address)
+        elif location_lat is not None or location_lon is not None or location_address is not None:
+            raise MatchServiceException("Incorrect location.")
+
+        task.edit(
+            owner,
+            title=title,
+            description=description,
+            category=category_enum,
+            location=location,
+        )
+        task = self.repository.task_update(task)
+        return task
+
     def task_close(self, task_id: int, owner_id: int) -> Task:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)

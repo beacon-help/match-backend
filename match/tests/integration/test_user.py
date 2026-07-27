@@ -145,7 +145,9 @@ class TestUserTaskInteractions:
         self._add_task(session, task_id=task_id)
 
         join_response = test_client.put(
-            f"/task/{task_id}", params={"action": TaskAction.JOIN}, headers=build_headers(user_2_id)
+            f"/task/{task_id}/manage",
+            params={"action": TaskAction.JOIN},
+            headers=build_headers(user_2_id),
         )
 
         assert join_response.status_code == HTTPStatus.OK
@@ -154,7 +156,7 @@ class TestUserTaskInteractions:
         assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}
 
         approve_response = test_client.put(
-            f"/task/{task_id}",
+            f"/task/{task_id}/manage",
             params={"action": TaskAction.APPROVE, "helper_id": user_2_id},
             headers=build_headers(user_1_id),
         )
@@ -165,7 +167,7 @@ class TestUserTaskInteractions:
         assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}
 
         success_response = test_client.put(
-            f"/task/{task_id}",
+            f"/task/{task_id}/manage",
             params={"action": TaskAction.REPORT_SUCCESS},
             headers=build_headers(user_1_id),
         )
@@ -185,7 +187,9 @@ class TestUserTaskInteractions:
         self._add_task(session, task_id=task_id)
 
         join_response = test_client.put(
-            f"/task/{task_id}", params={"action": TaskAction.JOIN}, headers=build_headers(user_2_id)
+            f"/task/{task_id}/manage",
+            params={"action": TaskAction.JOIN},
+            headers=build_headers(user_2_id),
         )
 
         assert join_response.status_code == HTTPStatus.OK
@@ -194,7 +198,7 @@ class TestUserTaskInteractions:
         assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}
 
         reject_response = test_client.put(
-            f"/task/{task_id}",
+            f"/task/{task_id}/manage",
             params={"action": TaskAction.REJECT, "helper_id": user_2_id},
             headers=build_headers(user_1_id),
         )
@@ -205,7 +209,7 @@ class TestUserTaskInteractions:
         assert task["helper"] is None
 
         close_response = test_client.put(
-            f"/task/{task_id}",
+            f"/task/{task_id}/manage",
             params={"action": TaskAction.CLOSE},
             headers=build_headers(user_1_id),
         )
@@ -227,7 +231,7 @@ class TestUserTaskInteractions:
         self._add_task(session, task_id=task_id)
 
         first_join_response = test_client.put(
-            f"/task/{task_id}", params={"action": "join"}, headers=build_headers(user_2_id)
+            f"/task/{task_id}/manage", params={"action": "join"}, headers=build_headers(user_2_id)
         )
 
         assert first_join_response.status_code == HTTPStatus.OK
@@ -236,7 +240,7 @@ class TestUserTaskInteractions:
         assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}
 
         second_join_reponse = test_client.put(
-            f"/task/{task_id}", params={"action": "join"}, headers=build_headers(user_3_id)
+            f"/task/{task_id}/manage", params={"action": "join"}, headers=build_headers(user_3_id)
         )
 
         assert second_join_reponse.status_code == HTTPStatus.OK
