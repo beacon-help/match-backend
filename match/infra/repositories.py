@@ -240,7 +240,7 @@ class InMemoryMatchRepository(MatchRepository):
 
     def task_update(self, task: Task) -> Task:
         if task.id is None:
-            raise Exception("Cannot update task without id.")
+            raise exceptions.RepositoryException("Cannot update task without id.")
         self.get_task_by_id(task.id)
         self.tasks[task.id] = task
         return deepcopy(task)
@@ -576,7 +576,7 @@ class SQLiteRepository(MatchRepository):
 
     def task_update(self, task: Task) -> Task:
         if not task.id:
-            raise Exception("Cannot update task without id.")
+            raise exceptions.RepositoryException("Cannot update task without id.")
         db_obj = self._get_task_by_id(task.id)
 
         db_obj.title = task.title

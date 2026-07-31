@@ -173,9 +173,6 @@ class MatchService:
     def task_join(self, task_id: int, user_id: int) -> Task:
         task = self.get_task_by_id(task_id)
         user = self.get_user_by_id(user_id)
-        if user_id != user.id:
-            print("WFTFFF")
-            raise Exception("lol")
         task.join(user.id)
         task = self.repository.task_update(task)
         return task

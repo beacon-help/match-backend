@@ -171,8 +171,8 @@ class Task:
             raise InvalidTaskAction from e
 
         if self.status == TaskStatus.CANCELLED:
-            raise Exception("Task already closed.")
+            raise InvalidTaskAction("Task already closed.")
         if self.status in (TaskStatus.SUCCEEDED, TaskStatus.FAILED):
-            raise Exception("Task is already finished.")
+            raise InvalidTaskAction("Task is already finished.")
         self.status = TaskStatus.CANCELLED
         self._post_task_update()
