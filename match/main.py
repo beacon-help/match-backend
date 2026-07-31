@@ -11,9 +11,11 @@ from match.config import Config, Environment, get_config
 from match.db import engine
 from match.infra import db_models
 from match.infra.api.health import router as health_api
+from match.infra.api.auth import router as auth_api
 from match.infra.api.task import router as task_api
 from match.infra.api.user import router as user_api
 
+AUTH_PREFIX = "/user"
 USER_PREFIX = "/user"
 TASK_PREFIX = "/task"
 
@@ -27,6 +29,9 @@ def load_project_metadata() -> tuple[str, str]:
 
 def configure_routing(app: FastAPI) -> None:
     app.include_router(health_api, tags=["health"])
+    app.include_router(
+        auth_api, prefix=AUTH_PREFIX, dependencies=[Depends(get_service)], tags=["user"]
+    )
     app.include_router(
         user_api, prefix=USER_PREFIX, dependencies=[Depends(get_service)], tags=["user"]
     )

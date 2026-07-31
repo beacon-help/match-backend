@@ -33,3 +33,34 @@ def verified_user(user: User = Depends(authenticated_user)) -> User:
     if not user.is_verified:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
     return user
+
+router = APIRouter()
+
+
+@router.post("/login", response_model=TokenSchema)
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    service: MatchService = Depends(get_service),
+) -> TokenSchema:
+    try:
+        user = service.authenticate(form_data.username, form_data.password)
+    except AuthenticationFailed:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED, detail="Incorrect username or password"
+        )
+    return TokenSchema(
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
+    )
+
+
+@router.post("/refresh", response_model=TokenSchema)
+def refresh(params: RefreshRequestSchema) -> TokenSchema:
+    try:
+        user_id = decode_token(params.refresh_token, REFRESH_TOKEN_TYPE)
+    except TokenError:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
+    return TokenSchema(
+        access_token=create_access_token(user_id),
+        refresh_token=create_refresh_token(user_id),
+    )

@@ -6,59 +6,21 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from match.app.service import MatchService
 from match.bootstrap import get_service
-from match.domain.exceptions import AuthenticationFailed, UserVerificationError
+from match.domain.exceptions import UserVerificationError
 from match.domain.user import User, UserType
 from match.infra.api.auth import verified_user
 from match.infra.api.schemas import (
     HelpseekerCreationRequestSchema,
-    RefreshRequestSchema,
-    TokenSchema,
     UserSchema,
     VolunteerCreationRequestSchema,
 )
-from match.infra.api.security import (
-    REFRESH_TOKEN_TYPE,
-    TokenError,
-    create_access_token,
-    create_refresh_token,
-    decode_token,
-)
+
 
 router = APIRouter()
 
 
-@router.post("/login", response_model=TokenSchema)
-def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    service: MatchService = Depends(get_service),
-) -> TokenSchema:
-    try:
-        user = service.authenticate(form_data.username, form_data.password)
-    except AuthenticationFailed:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED, detail="Incorrect username or password"
-        )
-    return TokenSchema(
-        access_token=create_access_token(user.id),
-        refresh_token=create_refresh_token(user.id),
-    )
-
-
-@router.post("/refresh", response_model=TokenSchema)
-def refresh(params: RefreshRequestSchema) -> TokenSchema:
-    try:
-        user_id = decode_token(params.refresh_token, REFRESH_TOKEN_TYPE)
-    except TokenError:
-        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
-    return TokenSchema(
-        access_token=create_access_token(user_id),
-        refresh_token=create_refresh_token(user_id),
-    )
-
-
 @router.get("/me", response_model=UserSchema)
 def get_me(user: User = Depends(verified_user)) -> dict:
-    # a trick is to use the User from auth
     return asdict(user)
 
 
