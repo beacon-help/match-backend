@@ -33,7 +33,7 @@ class TestCaseUserSignupPath:
                     "last_name": "De La Luz",
                     "email": "maria.volunteer@example.com",
                     "password": "s3cr3t-password",
-                    "properties": ["HAS_CAR", "CAN_HOST"],
+                    "properties": ["has_car", "can_host"],
                 },
                 "/volunteer",
                 id="volunteer",

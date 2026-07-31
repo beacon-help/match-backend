@@ -1,6 +1,7 @@
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
+from typing import NewType
 
 from match.domain.exceptions import UserNotPendingVerification, UserVerificationCodeInvalid
 
@@ -9,7 +10,7 @@ def generate_uuid_as_str() -> str:
     return str(uuid.uuid4())
 
 
-UserId = int
+UserId = NewType("UserId", int)
 
 
 class UserType(StrEnum):
@@ -31,7 +32,7 @@ class User:
     password_hash: str | None = field(default=None)
 
     def __repr__(self) -> str:
-        return f"User {self.id}"
+        return f"<User {self.id}>"
 
     @property
     def is_pending_verification(self) -> bool:
@@ -51,7 +52,7 @@ def create_user_verification_message(user: User, verification_url: str) -> str:
 
 
 class VolunteerProperties(Enum):
-    has_car = "HAS_CAR"
-    can_host = "CAN_HOST"
-    can_work_physical = "CAN_WORK_PHYSICAL"
-    has_tools = "HAS_TOOLS"
+    HAS_CAR = "has_car"
+    CAN_HOST = "can_host"
+    CAN_WORK_PHYSICAL = "can_work_physical"
+    HAS_TOOLS = "has_tools"

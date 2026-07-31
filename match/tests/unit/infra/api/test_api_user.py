@@ -121,7 +121,7 @@ def test_create_helpseeker_user_rejects_properties(test_client):
         "first_name": "Arnold",
         "last_name": "Adams",
         "email": "email@example.com",
-        "properties": ["HAS_CAR"],
+        "properties": ["has_car"],
     }
 
     response = test_client.post("/user/signup/helpseeker", data=json.dumps(payload))
@@ -149,7 +149,7 @@ def test_create_helpseeker_user_rejects_properties(test_client):
                 "last_name": "Johnson",
                 "email": "john@johnson.com",
                 "password": "s3cr3t-password",
-                "properties": ["HAS_CAR"],
+                "properties": ["has_car"],
             },
             id="volunteer",
         ),

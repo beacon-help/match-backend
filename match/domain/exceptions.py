@@ -4,6 +4,9 @@ class DomainException(Exception): ...
 class InvalidTaskAction(DomainException): ...
 
 
+class InvalidLocation(DomainException): ...
+
+
 # Service exceptions
 
 

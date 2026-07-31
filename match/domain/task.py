@@ -3,7 +3,7 @@ from datetime import datetime
 from datetime import timezone as tz
 from enum import StrEnum
 
-from match.domain.exceptions import InvalidTaskAction, NotAnOwner
+from match.domain.exceptions import InvalidTaskAction, NotAnOwner, InvalidLocation
 from match.domain.user import User, UserId
 
 
@@ -27,11 +27,21 @@ class Category(StrEnum):
     OTHER = "other"
 
 
+def _validate_coordinates(lat: float, lon: float, radius_km: float) -> bool:
+    if not -90 <= lat <= 90:
+        raise InvalidLocation("Invalid latitude.")
+    if not -180 <= lon <= 180:
+        raise InvalidLocation("Invalid longitude.")
+
+
 @dataclass
 class Location:
     lat: float
     lon: float
     address: str
+
+    def __post_init__(self) -> None:
+        _validate_coordinates(self.lat, self.lon)
 
 
 @dataclass(frozen=True)
@@ -39,6 +49,9 @@ class LocationRadius:
     lat: float
     lon: float
     radius_km: float
+
+    def __post_init__(self) -> None:
+        _validate_coordinates(self.lat, self.lon)
 
 
 @dataclass
@@ -53,6 +66,9 @@ class Task:
     helper_id: UserId | None = None
     updated_at: datetime | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(tz.utc))
+
+    def __repr__(self):
+        return f"<Task {self.id}>"
 
     @classmethod
     def create_task(
