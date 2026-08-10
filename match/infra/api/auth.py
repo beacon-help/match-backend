@@ -1,13 +1,21 @@
 from http import HTTPStatus
 
-from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 from match.app.service import MatchService
 from match.bootstrap import get_service
-from match.domain.exceptions import UserNotFound
+from match.domain.exceptions import AuthenticationFailed, UserNotFound
 from match.domain.user import User
-from match.infra.api.security import ACCESS_TOKEN_TYPE, TokenError, decode_token
+from match.infra.api.schemas import RefreshRequestSchema, TokenSchema
+from match.infra.api.security import (
+    ACCESS_TOKEN_TYPE,
+    REFRESH_TOKEN_TYPE,
+    TokenError,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="user/login")
 

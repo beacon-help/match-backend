@@ -27,7 +27,7 @@ class Category(StrEnum):
     OTHER = "other"
 
 
-def _validate_coordinates(lat: float, lon: float, radius_km: float) -> bool:
+def _validate_coordinates(lat: float, lon: float, radius_km: float | None = None) -> bool:
     if not -90 <= lat <= 90:
         raise InvalidLocation("Invalid latitude.")
     if not -180 <= lon <= 180:
