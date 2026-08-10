@@ -2,7 +2,7 @@ import abc
 from typing import TypedDict
 
 from match.domain.task import Category, LocationRadius, Task, TaskStatus
-from match.domain.user import User
+from match.domain.user import User, UserId
 
 
 class TaskFilter(TypedDict, total=False):
@@ -27,7 +27,7 @@ class MatchRepository(abc.ABC):
     def get_user_by_verification_code(self, verification_code: str) -> User: ...
 
     @abc.abstractmethod
-    def get_users_by_ids(self, user_ids: set[int]) -> dict[int, User]: ...
+    def get_users_by_ids(self, user_ids: set[UserId]) -> dict[UserId, User]: ...
 
     @abc.abstractmethod
     def user_update(self, user: User) -> User: ...

@@ -9,7 +9,7 @@ from match.domain.exceptions import (
 )
 from match.domain.interfaces import MatchRepository, MessageClient, TaskFilter
 from match.domain.task import Category, Location, Task
-from match.domain.user import User, UserType, create_user_verification_message
+from match.domain.user import User, UserId, UserType, create_user_verification_message
 from match.infra.api.security import hash_password, verify_password
 
 VERIFICATION_URL = "localhost:8000/user/verify/"
@@ -125,7 +125,7 @@ class MatchService:
     def _user_to_summary(user: User) -> dict[str, Any]:
         return {"id": user.id, "first_name": user.first_name}
 
-    def _task_to_api_response(self, task: Task, users_by_id: dict[int, User]) -> dict[str, Any]:
+    def _task_to_api_response(self, task: Task, users_by_id: dict[UserId, User]) -> dict[str, Any]:
         task_dict = asdict(task)
         owner = users_by_id[task.owner_id]
         helper = users_by_id[task.helper_id] if task.helper_id is not None else None
@@ -180,14 +180,14 @@ class MatchService:
     def task_approve(self, task_id: int, owner_id: int, helper_id: int) -> Task:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
-        task.approve_helper(owner, helper_id=helper_id)
+        task.approve_helper(owner, helper_id=UserId(helper_id))
         task = self.repository.task_update(task)
         return task
 
     def task_reject(self, task_id: int, owner_id: int, helper_id: int) -> Task:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
-        task.reject_helper(owner, helper_id=helper_id)
+        task.reject_helper(owner, helper_id=UserId(helper_id))
         task = self.repository.task_update(task)
         return task
 

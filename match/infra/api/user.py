@@ -15,7 +15,6 @@ from match.infra.api.schemas import (
     VolunteerCreationRequestSchema,
 )
 
-
 router = APIRouter()
 
 

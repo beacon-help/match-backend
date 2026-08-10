@@ -42,6 +42,7 @@ def verified_user(user: User = Depends(authenticated_user)) -> User:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
     return user
 
+
 router = APIRouter()
 
 

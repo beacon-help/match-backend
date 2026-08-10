@@ -3,7 +3,7 @@ from datetime import datetime
 from datetime import timezone as tz
 from enum import StrEnum
 
-from match.domain.exceptions import InvalidTaskAction, NotAnOwner, InvalidLocation
+from match.domain.exceptions import InvalidLocation, InvalidTaskAction, NotAnOwner
 from match.domain.user import User, UserId
 
 
@@ -27,7 +27,7 @@ class Category(StrEnum):
     OTHER = "other"
 
 
-def _validate_coordinates(lat: float, lon: float, radius_km: float | None = None) -> bool:
+def _validate_coordinates(lat: float, lon: float, radius_km: float | None = None) -> None:
     if not -90 <= lat <= 90:
         raise InvalidLocation("Invalid latitude.")
     if not -180 <= lon <= 180:
@@ -67,7 +67,7 @@ class Task:
     updated_at: datetime | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(tz.utc))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Task {self.id}>"
 
     @classmethod
@@ -97,7 +97,7 @@ class Task:
         if self.owner_id != user.id:
             raise NotAnOwner("User is not an owner.")
 
-    def join(self, helper_id: int) -> None:
+    def join(self, helper_id: UserId) -> None:
         if self.status != TaskStatus.OPEN:
             raise InvalidTaskAction(f"Cannot join this Task with status {self.status}")
         if self.owner_id == helper_id:

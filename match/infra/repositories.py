@@ -11,7 +11,7 @@ from sqlalchemy.orm.session import Session as SQLAlchemySession
 from match.domain import exceptions
 from match.domain.interfaces import MatchRepository, TaskFilter
 from match.domain.task import Category, Location, Task, TaskStatus
-from match.domain.user import User, UserType
+from match.domain.user import User, UserId, UserType
 from match.infra import db_models
 
 EARTH_RADIUS_KM = 6371.0088
@@ -58,7 +58,7 @@ class InMemoryMatchRepository(MatchRepository):
     def _setup_test_data(self) -> None:
         test_users = {
             100: User(
-                id=100,
+                id=UserId(100),
                 user_type=UserType.VOLUNTEER,
                 first_name="John",
                 last_name="Johnson",
@@ -67,7 +67,7 @@ class InMemoryMatchRepository(MatchRepository):
                 verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
             ),
             101: User(
-                id=101,
+                id=UserId(101),
                 user_type=UserType.HELP_SEEKER,
                 first_name="Adam",
                 last_name="Adamson",
@@ -76,7 +76,7 @@ class InMemoryMatchRepository(MatchRepository):
                 verification_code="3a86ddd8-a08e-56g4-98cg-55456c1g3g17",
             ),
             102: User(
-                id=102,
+                id=UserId(102),
                 user_type=UserType.HELP_SEEKER,
                 first_name="Gary",
                 last_name="Moveout",
@@ -85,7 +85,7 @@ class InMemoryMatchRepository(MatchRepository):
                 verification_code="4b97eee9-b19f-67h5-09dh-66567d2h4h28",
             ),
             103: User(
-                id=101,
+                id=UserId(101),
                 user_type=UserType.VOLUNTEER,
                 first_name="Garry",
                 last_name="Moveout",
@@ -100,7 +100,7 @@ class InMemoryMatchRepository(MatchRepository):
                 id=100,
                 title="Help",
                 description="please help me",
-                owner_id=100,
+                owner_id=UserId(100),
                 status=TaskStatus.OPEN,
                 category=Category.OTHER,
                 location=test_location,
@@ -111,8 +111,8 @@ class InMemoryMatchRepository(MatchRepository):
                 id=100,
                 title="Help",
                 description="please help me",
-                owner_id=100,
-                helper_id=101,
+                owner_id=UserId(100),
+                helper_id=UserId(101),
                 status=TaskStatus.PENDING,
                 category=Category.OTHER,
                 location=test_location,
@@ -123,8 +123,8 @@ class InMemoryMatchRepository(MatchRepository):
                 id=100,
                 title="Help",
                 description="please help me",
-                owner_id=100,
-                helper_id=101,
+                owner_id=UserId(100),
+                helper_id=UserId(101),
                 status=TaskStatus.APPROVED,
                 category=Category.OTHER,
                 location=test_location,
@@ -135,8 +135,8 @@ class InMemoryMatchRepository(MatchRepository):
                 id=100,
                 title="Help",
                 description="please help me",
-                owner_id=100,
-                helper_id=101,
+                owner_id=UserId(100),
+                helper_id=UserId(101),
                 status=TaskStatus.SUCCEEDED,
                 category=Category.OTHER,
                 location=test_location,
@@ -147,8 +147,8 @@ class InMemoryMatchRepository(MatchRepository):
                 id=100,
                 title="Help",
                 description="please help me",
-                owner_id=100,
-                helper_id=101,
+                owner_id=UserId(100),
+                helper_id=UserId(101),
                 status=TaskStatus.FAILED,
                 category=Category.OTHER,
                 location=test_location,
@@ -159,8 +159,8 @@ class InMemoryMatchRepository(MatchRepository):
                 id=100,
                 title="Help",
                 description="please help me",
-                owner_id=100,
-                helper_id=101,
+                owner_id=UserId(100),
+                helper_id=UserId(101),
                 status=TaskStatus.CANCELLED,
                 category=Category.OTHER,
                 location=test_location,
@@ -176,8 +176,8 @@ class InMemoryMatchRepository(MatchRepository):
         user_id = 1
         while user_id in self.users:
             user_id += 1
-        user = User(id=user_id, **user_data)
-        self.users[user.id] = user
+        user = User(id=UserId(user_id), **user_data)
+        self.users[user_id] = user
         return deepcopy(user)
 
     def user_update(self, user: User) -> User:
@@ -202,8 +202,8 @@ class InMemoryMatchRepository(MatchRepository):
                 return deepcopy(user)
         raise exceptions.UserNotFound
 
-    def get_users_by_ids(self, user_ids: set[int]) -> dict[int, User]:
-        users: dict[int, User] = {}
+    def get_users_by_ids(self, user_ids: set[UserId]) -> dict[UserId, User]:
+        users: dict[UserId, User] = {}
         for user_id in user_ids:
             try:
                 users[user_id] = deepcopy(self.users[user_id])
@@ -411,7 +411,7 @@ class SQLiteRepository(MatchRepository):
     @staticmethod
     def _user_to_domain(obj: db_models.User) -> User:
         return User(
-            id=obj.id,
+            id=UserId(obj.id),
             user_type=obj.user_type,
             first_name=obj.first_name,
             last_name=obj.last_name,
@@ -431,7 +431,7 @@ class SQLiteRepository(MatchRepository):
 
     def create_user(self, user_data: dict) -> User:
         self._ensure_test_data()
-        user = User(id=0, **user_data)
+        user = User(id=UserId(0), **user_data)
         existing_user = self.session.scalars(
             select(db_models.User).filter_by(email=user.email)
         ).first()
@@ -492,13 +492,13 @@ class SQLiteRepository(MatchRepository):
             raise exceptions.UserNotFound
         return self._user_to_domain(db_obj)
 
-    def get_users_by_ids(self, user_ids: set[int]) -> dict[int, User]:
+    def get_users_by_ids(self, user_ids: set[UserId]) -> dict[UserId, User]:
         self._ensure_test_data()
         if not user_ids:
             return {}
         statement = select(db_models.User).where(db_models.User.id.in_(user_ids))
         db_objs = self.session.scalars(statement).all()
-        return {obj.id: self._user_to_domain(obj) for obj in db_objs}
+        return {UserId(obj.id): self._user_to_domain(obj) for obj in db_objs}
 
     @staticmethod
     def _task_to_domain(obj: db_models.Task) -> Task:
@@ -520,8 +520,8 @@ class SQLiteRepository(MatchRepository):
             id=obj.id,
             title=obj.title,
             description=obj.description,
-            owner_id=obj.owner_id,
-            helper_id=obj.helper_id,
+            owner_id=UserId(obj.owner_id),
+            helper_id=UserId(obj.helper_id) if obj.helper_id is not None else None,
             status=status,
             category=Category(obj.category),
             location=location,
