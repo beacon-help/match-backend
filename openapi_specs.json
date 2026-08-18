@@ -528,10 +528,10 @@
       },
       "VolunteerProperties": {
         "enum": [
-          "HAS_CAR",
-          "CAN_HOST",
-          "CAN_WORK_PHYSICAL",
-          "HAS_TOOLS"
+          "has_car",
+          "can_host",
+          "can_work_physical",
+          "has_tools"
         ],
         "title": "VolunteerProperties",
         "type": "string"
