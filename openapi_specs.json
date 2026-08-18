@@ -311,6 +311,18 @@
               }
             ]
           },
+          "helper_offers": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Helper Offers"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -349,6 +361,7 @@
           "status",
           "owner",
           "helper",
+          "helper_offers",
           "description",
           "location",
           "category"
@@ -895,6 +908,22 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/TaskAction"
+            }
+          },
+          {
+            "in": "query",
+            "name": "message",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Message"
             }
           },
           {

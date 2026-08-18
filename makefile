@@ -9,7 +9,11 @@ build:
 
 ps:
 	docker compose ps
+
 up:
+	docker compose up
+
+upd:
 	docker compose up -d
 
 stop:
@@ -40,7 +44,7 @@ unit integration:
 
 
 format:
-	make up
+	make upd
 	docker compose exec $(SERVICE) sh $(FORMAT_TOOLS_DIR)/mypy.sh
 	docker compose exec $(SERVICE) sh $(FORMAT_TOOLS_DIR)/isort.sh
 	docker compose exec $(SERVICE) sh $(FORMAT_TOOLS_DIR)/black.sh

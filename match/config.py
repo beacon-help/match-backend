@@ -19,6 +19,8 @@ class Environment(enum.Enum):
 class Config:
     ENV: Environment
 
+    FE_HOST: str
+
     DB_PATH: str
 
     SENTRY_ENABLED: bool
@@ -52,5 +54,8 @@ def get_config(auto_convert: bool = True) -> Config:
         for int_key in ("ACCESS_TOKEN_TTL_MIN", "REFRESH_TOKEN_TTL_DAYS"):
             if int_key in raw_config:
                 raw_config[int_key] = int(raw_config[int_key])
+
+    expected_fields = {f.name for f in Config.__dataclass_fields__.values()}
+    raw_config = {k: v for k, v in raw_config.items() if k in expected_fields}
 
     return Config(**raw_config)

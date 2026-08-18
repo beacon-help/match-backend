@@ -129,6 +129,7 @@ def edit_task(
 def manage_task(
     task_id: int,
     action: TaskAction,
+    message: str | None = None,
     helper_id: int | None = None,
     user: User = Depends(verified_user),
     service: MatchService = Depends(get_service),
@@ -136,7 +137,12 @@ def manage_task(
     try:
         match action:
             case TaskAction.JOIN:
-                task = service.task_join(task_id, user.id)
+                if message is None:
+                    raise HTTPException(
+                        status_code=HTTPStatus.BAD_REQUEST,
+                        detail="Message is required to join a task.",
+                    )
+                task = service.task_join(task_id, user.id, message)
             case TaskAction.APPROVE:
                 if helper_id is None:
                     raise HTTPException(

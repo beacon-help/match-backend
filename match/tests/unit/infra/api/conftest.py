@@ -26,8 +26,8 @@ def populate_db():
             (103, 'VOLUNTEER', 'Garry', 'Moveout', 'garry@move.out', '[]', 0, :code_103, :pw, '2024-11-14T00:00:00Z');
         """
     statement = """
-        INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
-        VALUES (100, 'Help', 'please help me', 'open', 'other', 100, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
+        INSERT OR REPLACE INTO tasks (id,title,description,status,category,owner_id,helper_id,helper_offers,updated_at,created_at,location_lat,location_lon,location_address)
+        VALUES (100, 'Help', 'please help me', 'open', 'other', 100, null, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
         """
     session.execute(
         text(users_statement),

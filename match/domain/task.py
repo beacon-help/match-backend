@@ -27,6 +27,28 @@ class Category(StrEnum):
     OTHER = "other"
 
 
+@dataclass
+class HelperOffer:
+    user_id: UserId
+    offered_at: datetime
+    message: str
+
+    def to_dict(self) -> dict:
+        return {
+            "user_id": self.user_id,
+            "offered_at": self.offered_at.isoformat(),
+            "message": self.message,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "HelperOffer":
+        return cls(
+            user_id=data["user_id"],
+            offered_at=datetime.fromisoformat(data["offered_at"]),
+            message=data["message"],
+        )
+
+
 def _validate_coordinates(lat: float, lon: float, radius_km: float | None = None) -> None:
     if not -90 <= lat <= 90:
         raise InvalidLocation("Invalid latitude.")
@@ -64,6 +86,7 @@ class Task:
     category: Category
     location: Location | None
     helper_id: UserId | None = None
+    helper_offers: list[HelperOffer] = field(default_factory=list)
     updated_at: datetime | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(tz.utc))
 
@@ -84,6 +107,7 @@ class Task:
             status=TaskStatus.OPEN,
             owner_id=owner.id,
             helper_id=None,
+            helper_offers=[],
             title=title,
             description=description,
             category=category,
@@ -97,11 +121,17 @@ class Task:
         if self.owner_id != user.id:
             raise NotAnOwner("User is not an owner.")
 
-    def join(self, helper_id: UserId) -> None:
+    def join(self, helper_id: UserId, message: str) -> None:
         if self.status != TaskStatus.OPEN:
             raise InvalidTaskAction(f"Cannot join this Task with status {self.status}")
         if self.owner_id == helper_id:
             raise InvalidTaskAction("Owner cannot join its own Task.")
+        offer = HelperOffer(
+            user_id=helper_id,
+            offered_at=datetime.now(tz.utc),
+            message=message,
+        )
+        self.helper_offers.append(offer)
         self.helper_id = helper_id
         self.status = TaskStatus.PENDING
         self._post_task_update()

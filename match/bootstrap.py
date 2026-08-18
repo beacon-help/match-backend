@@ -12,7 +12,9 @@ config = get_config()
 
 repository = SQLiteRepository(session=Session())
 match_service = MatchService(
-    user_messaging_client=FakeMessageClient(config=config), repository=repository
+    user_messaging_client=FakeMessageClient(config=config),
+    repository=repository,
+    _fe_host=config.FE_HOST,
 )
 
 

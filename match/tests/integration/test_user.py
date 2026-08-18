@@ -91,10 +91,10 @@ class TestUserTaskInteractions:
             text(
                 f"""
                 INSERT OR REPLACE INTO tasks (
-                    id, title, description, status, category, owner_id, helper_id,
+                    id, title, description, status, category, owner_id, helper_id, helper_offers,
                     updated_at, created_at, location_lat, location_lon, location_address
                 ) VALUES (
-                    {task_id}, 'Help', 'please help me', 'open', 'other', {owner_id}, {helper_id},
+                    {task_id}, 'Help', 'please help me', 'open', 'other', {owner_id}, {helper_id}, NULL,
                     null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address'
                 );
                 """
@@ -126,6 +126,7 @@ class TestUserTaskInteractions:
                 "status": "open",
                 "owner": {"id": 1, "first_name": "John"},
                 "helper": None,
+                "helper_offers": None,
                 "description": "please help me",
                 "location": {
                     "lat": 39.4738,
@@ -146,7 +147,7 @@ class TestUserTaskInteractions:
 
         join_response = test_client.put(
             f"/task/{task_id}/manage",
-            params={"action": TaskAction.JOIN},
+            params={"action": TaskAction.JOIN, "message": "I can help with this task"},
             headers=build_headers(user_2_id),
         )
 
@@ -188,7 +189,7 @@ class TestUserTaskInteractions:
 
         join_response = test_client.put(
             f"/task/{task_id}/manage",
-            params={"action": TaskAction.JOIN},
+            params={"action": TaskAction.JOIN, "message": "Let me help you"},
             headers=build_headers(user_2_id),
         )
 
@@ -231,7 +232,9 @@ class TestUserTaskInteractions:
         self._add_task(session, task_id=task_id)
 
         first_join_response = test_client.put(
-            f"/task/{task_id}/manage", params={"action": "join"}, headers=build_headers(user_2_id)
+            f"/task/{task_id}/manage",
+            params={"action": "join", "message": "I can help"},
+            headers=build_headers(user_2_id),
         )
 
         assert first_join_response.status_code == HTTPStatus.OK
@@ -240,7 +243,9 @@ class TestUserTaskInteractions:
         assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}
 
         second_join_reponse = test_client.put(
-            f"/task/{task_id}/manage", params={"action": "join"}, headers=build_headers(user_3_id)
+            f"/task/{task_id}/manage",
+            params={"action": "join", "message": "Me too"},
+            headers=build_headers(user_3_id),
         )
 
         assert second_join_reponse.status_code == HTTPStatus.OK

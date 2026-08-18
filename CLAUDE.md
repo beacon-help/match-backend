@@ -32,6 +32,8 @@ make downgrade                      # Roll back one migration
 make reset-db                       # Delete the SQLite DB file
 ```
 
+Always use `make migration` command instead of creating migration files manually.
+
 ### OpenAPI spec
 
 ```shell

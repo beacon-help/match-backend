@@ -8,7 +8,7 @@ from match.infra.api.schemas import TaskAction
 from match.tests.conftest import build_headers
 
 
-def build_task_response(owner_id=100, task_id=1, status="open", helper_id=None):
+def build_task_response(owner_id=100, task_id=1, status="open", helper_id=None, helper_offers=None):
     helper = {"id": helper_id, "first_name": "Adam"} if helper_id is not None else None
     return {
         "id": task_id,
@@ -18,6 +18,7 @@ def build_task_response(owner_id=100, task_id=1, status="open", helper_id=None):
         "status": status,
         "owner": {"id": owner_id, "first_name": "John"},
         "helper": helper,
+        "helper_offers": helper_offers,
         "description": "please help me",
         "category": "other",
         "location": {
@@ -202,10 +203,29 @@ def test_join_task(test_client, user_id, expected_status):
     ).json()
     response = test_client.put(
         f"/task/{str(new_task['id'])}/manage",
-        params={"action": TaskAction.JOIN},
+        params={"action": TaskAction.JOIN, "message": "I can help with this"},
         headers=build_headers(user_id),
     )
     assert response.status_code == expected_status
+
+
+def test_join_task_requires_message(test_client):
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
+        headers=build_headers(100),
+    ).json()
+    response = test_client.put(
+        f"/task/{str(new_task['id'])}/manage",
+        params={"action": TaskAction.JOIN},
+        headers=build_headers(101),
+    )
+    assert response.status_code == HTTPStatus.BAD_REQUEST
 
 
 UPDATE_PAYLOAD = {

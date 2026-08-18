@@ -40,6 +40,7 @@ class Task(Base):
     category: Mapped[str] = mapped_column()
     owner_id: Mapped[int] = mapped_column()
     helper_id: Mapped[int | None] = mapped_column()
+    helper_offers: Mapped[str | None] = mapped_column()
     updated_at: Mapped[datetime | None] = mapped_column()
     created_at: Mapped[datetime] = mapped_column()
     location_lat: Mapped[float | None] = mapped_column()

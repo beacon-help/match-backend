@@ -19,6 +19,10 @@ VERIFICATION_URL = "localhost:8000/user/verify/"
 class MatchService:
     user_messaging_client: MessageClient
     repository: MatchRepository
+    _fe_host: str
+
+    def _construct_verification_url(self, code: str) -> str:
+        return f"{self._fe_host}/verify/{code}"
 
     def _create_user(
         self,
@@ -70,6 +74,7 @@ class MatchService:
             raise Exception
         verification_url = VERIFICATION_URL + user.verification_code
         message = create_user_verification_message(user, verification_url)
+        print("FE verification link:", self._construct_verification_url(user.verification_code))
         self.user_messaging_client.send_message(message, user)
 
     def verify_user_with_code(self, verification_code: str) -> None:
@@ -134,6 +139,9 @@ class MatchService:
         task_dict.pop("helper_id")
         task_dict["owner"] = self._user_to_summary(owner)
         task_dict["helper"] = self._user_to_summary(helper) if helper else None
+        task_dict["helper_offers"] = (
+            task_dict["helper_offers"] if task_dict["helper_offers"] else None
+        )
         return task_dict
 
     # TODO: this goes to infra
@@ -170,10 +178,10 @@ class MatchService:
             if task.location is not None
         ]
 
-    def task_join(self, task_id: int, user_id: int) -> Task:
+    def task_join(self, task_id: int, user_id: int, message: str) -> Task:
         task = self.get_task_by_id(task_id)
         user = self.get_user_by_id(user_id)
-        task.join(user.id)
+        task.join(user.id, message)
         task = self.repository.task_update(task)
         return task
 

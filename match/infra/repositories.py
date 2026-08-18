@@ -10,7 +10,7 @@ from sqlalchemy.orm.session import Session as SQLAlchemySession
 
 from match.domain import exceptions
 from match.domain.interfaces import MatchRepository, TaskFilter
-from match.domain.task import Category, Location, Task, TaskStatus
+from match.domain.task import Category, HelperOffer, Location, Task, TaskStatus
 from match.domain.user import User, UserId, UserType
 from match.infra import db_models
 
@@ -516,12 +516,21 @@ class SQLiteRepository(MatchRepository):
         else:
             location = None
 
+        helper_offers_list = []
+        if obj.helper_offers:
+            try:
+                offers_data = json.loads(obj.helper_offers)
+                helper_offers_list = [HelperOffer.from_dict(offer) for offer in offers_data]
+            except (json.JSONDecodeError, ValueError):
+                helper_offers_list = []
+
         return Task(
             id=obj.id,
             title=obj.title,
             description=obj.description,
             owner_id=UserId(obj.owner_id),
             helper_id=UserId(obj.helper_id) if obj.helper_id is not None else None,
+            helper_offers=helper_offers_list,
             status=status,
             category=Category(obj.category),
             location=location,
@@ -537,6 +546,11 @@ class SQLiteRepository(MatchRepository):
             raise exceptions.TaskNotFound
 
     def create_task(self, task: Task) -> Task:
+        helper_offers_json = (
+            json.dumps([offer.to_dict() for offer in task.helper_offers])
+            if task.helper_offers
+            else None
+        )
         db_model = db_models.Task(
             title=task.title,
             description=task.description,
@@ -544,6 +558,7 @@ class SQLiteRepository(MatchRepository):
             status=task.status.value,
             category=task.category.value,
             helper_id=task.helper_id,
+            helper_offers=helper_offers_json,
             updated_at=task.updated_at,
             created_at=task.created_at,
             location_lat=task.location.lat if task.location else None,
@@ -582,6 +597,11 @@ class SQLiteRepository(MatchRepository):
         db_obj.title = task.title
         db_obj.description = task.description
         db_obj.helper_id = task.helper_id
+        db_obj.helper_offers = (
+            json.dumps([offer.to_dict() for offer in task.helper_offers])
+            if task.helper_offers
+            else None
+        )
         db_obj.status = task.status.value
         db_obj.category = task.category.value
         db_obj.updated_at = task.updated_at
