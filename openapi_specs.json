@@ -312,16 +312,9 @@
             ]
           },
           "helper_offers": {
-            "anyOf": [
-              {
-                "items": {},
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Helper Offers"
+            "items": {},
+            "title": "Helper Offers",
+            "type": "array"
           },
           "id": {
             "title": "Id",

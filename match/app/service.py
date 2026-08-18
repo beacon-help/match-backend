@@ -139,9 +139,6 @@ class MatchService:
         task_dict.pop("helper_id")
         task_dict["owner"] = self._user_to_summary(owner)
         task_dict["helper"] = self._user_to_summary(helper) if helper else None
-        task_dict["helper_offers"] = (
-            task_dict["helper_offers"] if task_dict["helper_offers"] else None
-        )
         return task_dict
 
     # TODO: this goes to infra

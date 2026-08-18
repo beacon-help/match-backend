@@ -18,7 +18,7 @@ def build_task_response(owner_id=100, task_id=1, status="open", helper_id=None, 
         "status": status,
         "owner": {"id": owner_id, "first_name": "John"},
         "helper": helper,
-        "helper_offers": helper_offers,
+        "helper_offers": helper_offers if helper_offers is not None else [],
         "description": "please help me",
         "category": "other",
         "location": {

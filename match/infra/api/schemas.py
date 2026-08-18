@@ -99,7 +99,7 @@ class TaskSchema(BaseModel):
     status: TaskStatus
     owner: TaskUserSchema
     helper: TaskUserSchema | None
-    helper_offers: list | None
+    helper_offers: list
     description: str
     location: Location
     category: Category

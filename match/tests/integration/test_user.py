@@ -126,7 +126,7 @@ class TestUserTaskInteractions:
                 "status": "open",
                 "owner": {"id": 1, "first_name": "John"},
                 "helper": None,
-                "helper_offers": None,
+                "helper_offers": [],
                 "description": "please help me",
                 "location": {
                     "lat": 39.4738,
