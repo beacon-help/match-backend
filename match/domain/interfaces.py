@@ -48,3 +48,11 @@ class MatchRepository(abc.ABC):
 class MessageClient(abc.ABC):
     @abc.abstractmethod
     def send_message(self, message: str, user: User) -> None: ...
+
+
+class ImageRepository(abc.ABC):
+    @abc.abstractmethod
+    def upload(self, image: bytes) -> str: ...
+
+    @abc.abstractmethod
+    def delete(self, img_path: str) -> None: ...
