@@ -26,6 +26,7 @@ def build_task_response(owner_id=100, task_id=1, status="open", helper_id=None, 
             "lon": 0.3756,
             "address": "My address",
         },
+        "image_urls": [],
     }
 
 

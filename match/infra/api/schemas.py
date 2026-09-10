@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr
 from pydantic_extra_types.coordinate import Latitude, Longitude
 
 from match.domain.task import Category
@@ -103,6 +103,7 @@ class TaskSchema(BaseModel):
     description: str
     location: Location
     category: Category
+    image_urls: list[AnyUrl]
 
 
 class TaskLocationSchema(BaseModel):

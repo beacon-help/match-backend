@@ -320,6 +320,15 @@
             "title": "Id",
             "type": "integer"
           },
+          "image_urls": {
+            "items": {
+              "format": "uri",
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Image Urls",
+            "type": "array"
+          },
           "location": {
             "$ref": "#/components/schemas/Location"
           },
@@ -357,7 +366,8 @@
           "helper_offers",
           "description",
           "location",
-          "category"
+          "category",
+          "image_urls"
         ],
         "title": "TaskSchema",
         "type": "object"

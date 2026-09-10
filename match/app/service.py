@@ -140,6 +140,9 @@ class MatchService:
         task_dict.pop("helper_id")
         task_dict["owner"] = self._user_to_summary(owner)
         task_dict["helper"] = self._user_to_summary(helper) if helper else None
+
+        task_dict["image_urls"] = []
+
         return task_dict
 
     # TODO: this goes to infra
