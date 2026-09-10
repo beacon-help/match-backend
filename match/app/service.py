@@ -7,7 +7,7 @@ from match.domain.exceptions import (
     UserNotFound,
     UserVerificationCodeInvalid,
 )
-from match.domain.interfaces import MatchRepository, MessageClient, TaskFilter
+from match.domain.interfaces import ImageRepository, MatchRepository, MessageClient, TaskFilter
 from match.domain.task import Category, Location, Task
 from match.domain.user import User, UserId, UserType, create_user_verification_message
 from match.infra.api.security import hash_password, verify_password
@@ -19,6 +19,7 @@ VERIFICATION_URL = "localhost:8000/user/verify/"
 class MatchService:
     user_messaging_client: MessageClient
     repository: MatchRepository
+    image_repository: ImageRepository
     _fe_host: str
 
     def _construct_verification_url(self, code: str) -> str:
