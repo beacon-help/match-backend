@@ -132,6 +132,26 @@
         "title": "HelpseekerCreationRequestSchema",
         "type": "object"
       },
+      "ImageSchema": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "path": {
+            "format": "uri",
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "path"
+        ],
+        "title": "ImageSchema",
+        "type": "object"
+      },
       "Location": {
         "properties": {
           "address": {
@@ -337,13 +357,11 @@
             "title": "Id",
             "type": "integer"
           },
-          "image_urls": {
+          "images": {
             "items": {
-              "format": "uri",
-              "minLength": 1,
-              "type": "string"
+              "$ref": "#/components/schemas/ImageSchema"
             },
-            "title": "Image Urls",
+            "title": "Images",
             "type": "array"
           },
           "location": {
@@ -384,7 +402,7 @@
           "description",
           "location",
           "category",
-          "image_urls"
+          "images"
         ],
         "title": "TaskSchema",
         "type": "object"
