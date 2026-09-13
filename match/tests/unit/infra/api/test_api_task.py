@@ -382,3 +382,86 @@ def test_get_task_image_not_found(test_client):
     response = test_client.get("/task/images/data/imgs/does-not-exist")
 
     assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_remove_task_image_happy_path(test_client):
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
+        headers=build_headers(100),
+    ).json()
+    uploaded = test_client.post(
+        f"/task/{new_task['id']}/images",
+        files={"images": ("photo.jpg", b"fake image bytes", "image/jpeg")},
+        headers=build_headers(100),
+    ).json()
+    image_path = uploaded["image_urls"][0].split("/task/images/", 1)[1]
+
+    response = test_client.delete(
+        f"/task/{new_task['id']}/images/{image_path}",
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["image_urls"] == []
+    assert test_client.get(f"/task/images/{image_path}").status_code == HTTPStatus.NOT_FOUND
+
+
+def test_remove_task_image_rejects_non_owner(test_client):
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
+        headers=build_headers(100),
+    ).json()
+    uploaded = test_client.post(
+        f"/task/{new_task['id']}/images",
+        files={"images": ("photo.jpg", b"fake image bytes", "image/jpeg")},
+        headers=build_headers(100),
+    ).json()
+    image_path = uploaded["image_urls"][0].split("/task/images/", 1)[1]
+
+    response = test_client.delete(
+        f"/task/{new_task['id']}/images/{image_path}",
+        headers=build_headers(101),
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_remove_task_image_not_found(test_client):
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
+        headers=build_headers(100),
+    ).json()
+
+    response = test_client.delete(
+        f"/task/{new_task['id']}/images/data/imgs/{new_task['id']}/does-not-exist",
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_remove_task_image_task_not_found(test_client):
+    response = test_client.delete(
+        "/task/999999/images/data/imgs/999999/does-not-exist",
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND

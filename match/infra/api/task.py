@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import (
+    DomainException,
     InvalidTaskAction,
     MatchServiceException,
     PermissionDenied,
@@ -120,6 +121,24 @@ def add_task_images(
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
     except InvalidTaskAction as e:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
+    return service.format_task_response(task)
+
+
+@router.delete("/{task_id}/images/{image_id:path}", response_model=TaskSchema)
+def remove_task_image(
+    task_id: int,
+    image_id: str,
+    user: User = Depends(verified_user),
+    service: MatchService = Depends(get_service),
+) -> dict:
+    try:
+        task = service.task_remove_image(task_id, owner_id=user.id, image_id=image_id)
+    except TaskNotFound:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
+    except InvalidTaskAction as e:
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
+    except DomainException:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
     return service.format_task_response(task)
 
 

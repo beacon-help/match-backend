@@ -3,7 +3,7 @@ from datetime import datetime
 from datetime import timezone as tz
 from enum import StrEnum
 
-from match.domain.exceptions import InvalidLocation, InvalidTaskAction, NotAnOwner
+from match.domain.exceptions import DomainException, InvalidLocation, InvalidTaskAction, NotAnOwner
 from match.domain.user import User, UserId
 
 
@@ -218,6 +218,18 @@ class Task:
             raise InvalidTaskAction from e
 
         self.image_paths.extend(image_paths)
+        self._post_task_update()
+
+    def remove_image(self, user: User, image_id: str) -> None:
+        try:
+            self._validate_owner(user)
+        except NotAnOwner as e:
+            raise InvalidTaskAction from e
+
+        if image_id not in self.image_paths:
+            raise DomainException(f"Image {image_id} not found on task.")
+
+        self.image_paths.remove(image_id)
         self._post_task_update()
 
     def close(self, user: User) -> None:
