@@ -5,7 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.session import Session as SQLAlchemySession
 
-SQLALCHEMY_DB_URL = "sqlite:////usr/src/app/data/app.db"
+SQLALCHEMY_DB_URL = "sqlite:////usr/src/app/data/db/app.db"
 
 engine = create_engine(SQLALCHEMY_DB_URL, connect_args={"check_same_thread": False})
 

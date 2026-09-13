@@ -3,7 +3,7 @@ from pathlib import Path
 
 from match.domain.interfaces import ImageRepository
 
-STORAGE_DIR = "data/imgs"
+STORAGE_DIR = ".data/imgs"
 
 
 class LocalImageRepository(ImageRepository):

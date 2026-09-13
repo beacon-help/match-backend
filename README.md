@@ -29,6 +29,18 @@ Add new dependency by running in the container:
 uv add "dependency==version"
 ```
 
+## Test Users
+
+| Name | Email | Type | Password | Verified |
+|------|-------|------|----------|----------|
+| Verified WithPassword | verified.password@example.com | Volunteer | `password123` | ✓ |
+| Verified NoPassword | verified.nopassword@example.com | Volunteer | — | ✓ |
+| Unverified Pending | unverified.pending@example.com | Help Seeker | — | ✗ |
+| Volunteer AllProperties | volunteer.all@example.com | Volunteer | `password123` | ✓ |
+| Volunteer User | volunteer@verified.com | Volunteer | `Password` | ✓ |
+| Help Seeker | help-seeker@verified.com | Help Seeker | `Password` | ✓ |
+| Help Seeker Plus | help-seeker+t@verified.com | Help Seeker | `Password` | ✓ |
+
 ## TODO:
 - [ ] Task to have owner and helper setters instead of passing user_id directly. Create _helper_id, _set_owner_id(owner)and property def owner_id/helper_id.
 - [ ] Task to have tasks setter instead of... doing nothing currently. See above.

@@ -28,7 +28,7 @@ bash:
 
 db-shell:
 	make up
-	docker compose exec -it $(SERVICE) sqlite3 /usr/src/app/data/app.db
+	docker compose exec -it $(SERVICE) sqlite3 /usr/src/app/data/db/app.db
 
 test:
 	@if [ "$(word 2,$(MAKECMDGOALS))" = "unit" ]; then \
@@ -62,7 +62,7 @@ show:
 	docker compose run $(SERVICE) uv run alembic show head
 
 reset-db:
-	docker compose run $(SERVICE) rm -f /usr/src/app/data/app.db
+	docker compose run $(SERVICE) rm -f /usr/src/app/data/db/app.db
 
 
 gen-specs:
