@@ -37,6 +37,16 @@ def test_add_images_appends_paths():
     assert task.updated_at is not None
 
 
+def test_add_images_deduplicates_paths():
+    owner = build_user(1)
+    task = build_task(owner)
+
+    task.add_images(owner, ["data/imgs/hash1"])
+    task.add_images(owner, ["data/imgs/hash1", "data/imgs/hash2"])
+
+    assert task.image_paths == ["data/imgs/hash1", "data/imgs/hash2"]
+
+
 def test_add_images_rejects_non_owner():
     owner = build_user(1)
     other_user = build_user(2)

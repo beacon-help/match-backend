@@ -217,7 +217,9 @@ class Task:
         except NotAnOwner as e:
             raise InvalidTaskAction from e
 
-        self.image_paths.extend(image_paths)
+        for path in image_paths:
+            if path not in self.image_paths:
+                self.image_paths.append(path)
         self._post_task_update()
 
     def remove_image(self, user: User, image_id: str) -> None:
