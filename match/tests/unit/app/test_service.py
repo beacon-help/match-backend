@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 from match.app.service import MatchService
@@ -14,15 +12,16 @@ def service(tmp_path, config):
     return MatchService(
         user_messaging_client=FakeMessageClient(config=config),
         repository=InMemoryMatchRepository(),
-        image_repository=LocalImageRepository(storage_dir=str(tmp_path / "imgs")),
+        image_repository=LocalImageRepository(
+            storage_dir=str(tmp_path / "imgs"), backend_host=config.BACKEND_HOST
+        ),
         _fe_host=config.FE_HOST,
-        _backend_host=config.BACKEND_HOST,
     )
 
 
 def test_task_remove_image_keeps_file_when_persisting_fails(service, monkeypatch):
     task = service.task_add_images(task_id=100, owner_id=100, images=[b"fake image bytes"])
-    image_id = task.image_paths[0]
+    image_id = task.images[0]
 
     def failing_task_update(task):
         raise RepositoryException("boom")
@@ -32,4 +31,4 @@ def test_task_remove_image_keeps_file_when_persisting_fails(service, monkeypatch
     with pytest.raises(RepositoryException):
         service.task_remove_image(task_id=100, owner_id=100, image_id=image_id)
 
-    assert Path(image_id).exists()
+    assert (service.image_repository.storage_dir / image_id).exists()

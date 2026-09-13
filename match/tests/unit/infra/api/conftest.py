@@ -14,8 +14,10 @@ def populate_db():
     password_hash = hash_password(SEED_PASSWORD)
     clear_users_statement = "DELETE FROM users;"
     clear_statement = "DELETE FROM tasks;"
+    clear_images_statement = "DELETE FROM images;"
     session.execute(text(clear_users_statement))
     session.execute(text(clear_statement))
+    session.execute(text(clear_images_statement))
     users_statement = """
         INSERT OR REPLACE INTO users (
             id, user_type, first_name, last_name, email, properties, is_verified, verification_code, password_hash, created_at

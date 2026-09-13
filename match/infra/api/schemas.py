@@ -91,6 +91,11 @@ class TaskUserSchema(BaseModel):
     first_name: str
 
 
+class ImageSchema(BaseModel):
+    id: str
+    path: AnyUrl
+
+
 class TaskSchema(BaseModel):
     id: int
     title: str
@@ -103,7 +108,7 @@ class TaskSchema(BaseModel):
     description: str
     location: Location
     category: Category
-    image_urls: list[AnyUrl]
+    images: list[ImageSchema]
 
 
 class TaskLocationSchema(BaseModel):

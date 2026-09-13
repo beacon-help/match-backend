@@ -1,5 +1,4 @@
 import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -17,40 +16,37 @@ def image_repository(temp_storage):
     return LocalImageRepository(storage_dir=temp_storage)
 
 
-def test_upload_creates_file(image_repository, temp_storage):
+def test_upload_creates_file(image_repository):
     image_data = b"fake image data"
 
-    file_path = image_repository.upload(image_data, task_id=1)
+    image_id = image_repository.upload(image_data)
 
-    assert Path(file_path).exists()
-    assert Path(file_path).read_bytes() == image_data
-
-
-def test_upload_returns_path_string(image_repository):
-    image_data = b"test image"
-
-    result = image_repository.upload(image_data, task_id=1)
-
-    assert isinstance(result, str)
-    assert result.startswith((image_repository.storage_dir / "1").as_posix())
+    assert (image_repository.storage_dir / image_id).read_bytes() == image_data
 
 
-def test_upload_namespaces_by_task_id(image_repository):
-    image_data = b"test image"
+def test_upload_same_content_gets_distinct_ids(image_repository):
+    first_id = image_repository.upload(b"same bytes")
+    second_id = image_repository.upload(b"same bytes")
 
-    result = image_repository.upload(image_data, task_id=42)
+    assert first_id != second_id
 
-    assert Path(result).parent.name == "42"
+
+def test_read_returns_bytes_by_id(image_repository):
+    first_id = image_repository.upload(b"image one")
+    second_id = image_repository.upload(b"image two")
+
+    result = image_repository.read([first_id, second_id])
+
+    assert result == {first_id: b"image one", second_id: b"image two"}
 
 
 def test_delete_removes_file(image_repository):
-    image_data = b"image to delete"
-    file_path = image_repository.upload(image_data, task_id=1)
+    image_id = image_repository.upload(b"image to delete")
 
-    image_repository.delete(file_path)
+    image_repository.delete(image_id)
 
-    assert not Path(file_path).exists()
+    assert not (image_repository.storage_dir / image_id).exists()
 
 
 def test_delete_missing_file_does_not_error(image_repository):
-    image_repository.delete("/nonexistent/path")
+    image_repository.delete("does-not-exist")

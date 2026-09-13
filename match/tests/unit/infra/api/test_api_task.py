@@ -26,7 +26,7 @@ def build_task_response(owner_id=100, task_id=1, status="open", helper_id=None, 
             "lon": 0.3756,
             "address": "My address",
         },
-        "image_urls": [],
+        "images": [],
     }
 
 
@@ -337,11 +337,10 @@ def test_add_task_images_happy_path(test_client):
 
     assert response.status_code == HTTPStatus.CREATED
     task = response.json()
-    assert len(task["image_urls"]) == 1
-    image_url = task["image_urls"][0]
+    assert len(task["images"]) == 1
+    image_id = task["images"][0]["id"]
 
-    image_path = image_url.split("/task/images/", 1)[1]
-    image_response = test_client.get(f"/task/images/{image_path}")
+    image_response = test_client.get(f"/task/images/{image_id}")
 
     assert image_response.status_code == HTTPStatus.OK
     assert image_response.content == b"fake image bytes"
@@ -366,8 +365,7 @@ def test_add_task_images_rejects_non_owner(test_client, image_storage_dir):
     )
 
     assert response.status_code == HTTPStatus.FORBIDDEN
-    task_image_dir = image_storage_dir / str(new_task["id"])
-    assert not task_image_dir.exists()
+    assert list(image_storage_dir.iterdir()) == []
 
 
 def test_add_task_images_not_found(test_client):
@@ -381,7 +379,7 @@ def test_add_task_images_not_found(test_client):
 
 
 def test_get_task_image_not_found(test_client):
-    response = test_client.get("/task/images/data/imgs/does-not-exist")
+    response = test_client.get("/task/images/does-not-exist")
 
     assert response.status_code == HTTPStatus.NOT_FOUND
 
@@ -402,16 +400,16 @@ def test_remove_task_image_happy_path(test_client):
         files={"images": ("photo.jpg", b"fake image bytes", "image/jpeg")},
         headers=build_headers(100),
     ).json()
-    image_path = uploaded["image_urls"][0].split("/task/images/", 1)[1]
+    image_id = uploaded["images"][0]["id"]
 
     response = test_client.delete(
-        f"/task/{new_task['id']}/images/{image_path}",
+        f"/task/{new_task['id']}/images/{image_id}",
         headers=build_headers(100),
     )
 
     assert response.status_code == HTTPStatus.OK
-    assert response.json()["image_urls"] == []
-    assert test_client.get(f"/task/images/{image_path}").status_code == HTTPStatus.NOT_FOUND
+    assert response.json()["images"] == []
+    assert test_client.get(f"/task/images/{image_id}").status_code == HTTPStatus.NOT_FOUND
 
 
 def test_remove_task_image_rejects_non_owner(test_client):
@@ -430,10 +428,10 @@ def test_remove_task_image_rejects_non_owner(test_client):
         files={"images": ("photo.jpg", b"fake image bytes", "image/jpeg")},
         headers=build_headers(100),
     ).json()
-    image_path = uploaded["image_urls"][0].split("/task/images/", 1)[1]
+    image_id = uploaded["images"][0]["id"]
 
     response = test_client.delete(
-        f"/task/{new_task['id']}/images/{image_path}",
+        f"/task/{new_task['id']}/images/{image_id}",
         headers=build_headers(101),
     )
 
@@ -453,7 +451,7 @@ def test_remove_task_image_not_found(test_client):
     ).json()
 
     response = test_client.delete(
-        f"/task/{new_task['id']}/images/data/imgs/{new_task['id']}/does-not-exist",
+        f"/task/{new_task['id']}/images/does-not-exist",
         headers=build_headers(100),
     )
 
@@ -462,7 +460,7 @@ def test_remove_task_image_not_found(test_client):
 
 def test_remove_task_image_task_not_found(test_client):
     response = test_client.delete(
-        "/task/999999/images/data/imgs/999999/does-not-exist",
+        "/task/999999/images/does-not-exist",
         headers=build_headers(100),
     )
 

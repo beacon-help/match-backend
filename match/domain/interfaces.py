@@ -1,7 +1,7 @@
 import abc
 from typing import TypedDict
 
-from match.domain.task import Category, LocationRadius, Task, TaskStatus
+from match.domain.task import Category, ImageId, LocationRadius, Task, TaskStatus
 from match.domain.user import User, UserId
 
 
@@ -44,6 +44,9 @@ class MatchRepository(abc.ABC):
     @abc.abstractmethod
     def task_update(self, task: Task) -> Task: ...
 
+    @abc.abstractmethod
+    def images_delete(self, image_ids: list[ImageId]) -> None: ...
+
 
 class MessageClient(abc.ABC):
     @abc.abstractmethod
@@ -52,10 +55,13 @@ class MessageClient(abc.ABC):
 
 class ImageRepository(abc.ABC):
     @abc.abstractmethod
-    def upload(self, image: bytes, task_id: int) -> str: ...
+    def upload(self, image: bytes) -> str: ...
 
     @abc.abstractmethod
-    def read(self, image_id: str) -> bytes: ...
+    def read(self, image_ids: list[str]) -> dict[str, bytes]: ...
 
     @abc.abstractmethod
-    def delete(self, img_path: str) -> None: ...
+    def delete(self, image_id: str) -> None: ...
+
+    @abc.abstractmethod
+    def path(self, image_id: str) -> str: ...

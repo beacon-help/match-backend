@@ -134,7 +134,7 @@ class TestUserTaskInteractions:
                     "address": "My address",
                 },
                 "category": "other",
-                "image_urls": [],
+                "images": [],
             }
         ]
 

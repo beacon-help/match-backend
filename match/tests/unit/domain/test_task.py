@@ -27,24 +27,14 @@ def build_task(owner):
     )
 
 
-def test_add_images_appends_paths():
+def test_add_images_appends_images():
     owner = build_user(1)
     task = build_task(owner)
 
-    task.add_images(owner, ["data/imgs/hash1", "data/imgs/hash2"])
+    task.add_images(owner, ["hash1", "hash2"])
 
-    assert task.image_paths == ["data/imgs/hash1", "data/imgs/hash2"]
+    assert task.images == ["hash1", "hash2"]
     assert task.updated_at is not None
-
-
-def test_add_images_deduplicates_paths():
-    owner = build_user(1)
-    task = build_task(owner)
-
-    task.add_images(owner, ["data/imgs/hash1"])
-    task.add_images(owner, ["data/imgs/hash1", "data/imgs/hash2"])
-
-    assert task.image_paths == ["data/imgs/hash1", "data/imgs/hash2"]
 
 
 def test_add_images_rejects_non_owner():
@@ -53,31 +43,31 @@ def test_add_images_rejects_non_owner():
     task = build_task(owner)
 
     with pytest.raises(InvalidTaskAction):
-        task.add_images(other_user, ["data/imgs/hash1"])
+        task.add_images(other_user, ["hash1"])
 
-    assert task.image_paths == []
+    assert task.images == []
 
 
-def test_remove_image_removes_path():
+def test_remove_image_removes_by_id():
     owner = build_user(1)
     task = build_task(owner)
-    task.add_images(owner, ["data/imgs/hash1", "data/imgs/hash2"])
+    task.add_images(owner, ["hash1", "hash2"])
 
-    task.remove_image(owner, "data/imgs/hash1")
+    task.remove_image(owner, "hash1")
 
-    assert task.image_paths == ["data/imgs/hash2"]
+    assert task.images == ["hash2"]
 
 
 def test_remove_image_rejects_non_owner():
     owner = build_user(1)
     other_user = build_user(2)
     task = build_task(owner)
-    task.add_images(owner, ["data/imgs/hash1"])
+    task.add_images(owner, ["hash1"])
 
     with pytest.raises(InvalidTaskAction):
-        task.remove_image(other_user, "data/imgs/hash1")
+        task.remove_image(other_user, "hash1")
 
-    assert task.image_paths == ["data/imgs/hash1"]
+    assert task.images == ["hash1"]
 
 
 def test_remove_image_not_found():
@@ -85,4 +75,4 @@ def test_remove_image_not_found():
     task = build_task(owner)
 
     with pytest.raises(DomainException):
-        task.remove_image(owner, "data/imgs/does-not-exist")
+        task.remove_image(owner, "does-not-exist")

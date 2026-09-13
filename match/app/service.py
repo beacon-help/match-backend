@@ -9,7 +9,7 @@ from match.domain.exceptions import (
     UserVerificationCodeInvalid,
 )
 from match.domain.interfaces import ImageRepository, MatchRepository, MessageClient, TaskFilter
-from match.domain.task import Category, Location, Task
+from match.domain.task import Category, ImageId, Location, Task
 from match.domain.user import User, UserId, UserType, create_user_verification_message
 from match.infra.api.security import hash_password, verify_password
 
@@ -22,13 +22,9 @@ class MatchService:
     repository: MatchRepository
     image_repository: ImageRepository
     _fe_host: str
-    _backend_host: str
 
     def _construct_verification_url(self, code: str) -> str:
         return f"{self._fe_host}/verify/{code}"
-
-    def _image_url(self, image_id: str) -> str:
-        return f"{self._backend_host}/task/images/{image_id}"
 
     def _create_user(
         self,
@@ -146,7 +142,10 @@ class MatchService:
         task_dict["owner"] = self._user_to_summary(owner)
         task_dict["helper"] = self._user_to_summary(helper) if helper else None
 
-        task_dict["image_urls"] = [self._image_url(p) for p in task_dict.pop("image_paths")]
+        task_dict["images"] = [
+            {"id": image_id, "path": self.image_repository.path(image_id)}
+            for image_id in task_dict.pop("images")
+        ]
 
         return task_dict
 
@@ -247,16 +246,17 @@ class MatchService:
         owner = self.get_user_by_id(owner_id)
         if task.owner_id != owner.id:
             raise InvalidTaskAction("User is not an owner.")
-        image_paths = [self.image_repository.upload(image, task_id) for image in images]
-        task.add_images(owner, image_paths)
+        image_ids = [ImageId(self.image_repository.upload(image)) for image in images]
+        task.add_images(owner, image_ids)
         task = self.repository.task_update(task)
         return task
 
     def task_remove_image(self, task_id: int, owner_id: int, image_id: str) -> Task:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
-        task.remove_image(owner, image_id)
+        task.remove_image(owner, ImageId(image_id))
         task = self.repository.task_update(task)
+        self.repository.images_delete([ImageId(image_id)])
         self.image_repository.delete(image_id)
         return task
 

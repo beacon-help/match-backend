@@ -10,7 +10,7 @@ from sqlalchemy.orm.session import Session as SQLAlchemySession
 
 from match.domain import exceptions
 from match.domain.interfaces import MatchRepository, TaskFilter
-from match.domain.task import Category, HelperOffer, Location, Task, TaskStatus
+from match.domain.task import Category, HelperOffer, ImageId, Location, Task, TaskStatus
 from match.domain.user import User, UserId, UserType
 from match.infra import db_models
 
@@ -52,8 +52,14 @@ class InMemoryMatchRepository(MatchRepository):
     def __init__(self, test_data: bool = True) -> None:
         self.users: dict[int, User] = {}
         self.tasks: dict[int, Task] = {}
+        self.images: dict[str, int] = {}
         if test_data:
             self._setup_test_data()
+
+    def _persist_new_images(self, task_id: int, task: Task) -> None:
+        for image_id in task.images:
+            if image_id not in self.images:
+                self.images[image_id] = task_id
 
     def _setup_test_data(self) -> None:
         test_users = {
@@ -216,6 +222,7 @@ class InMemoryMatchRepository(MatchRepository):
         while task_id in self.tasks:
             task_id += 1
         task.id = task_id
+        self._persist_new_images(task_id, task)
         self.tasks[task_id] = deepcopy(task)
         return deepcopy(task)
 
@@ -242,8 +249,13 @@ class InMemoryMatchRepository(MatchRepository):
         if task.id is None:
             raise exceptions.RepositoryException("Cannot update task without id.")
         self.get_task_by_id(task.id)
+        self._persist_new_images(task.id, task)
         self.tasks[task.id] = task
         return deepcopy(task)
+
+    def images_delete(self, image_ids: list[ImageId]) -> None:
+        for image_id in image_ids:
+            self.images.pop(image_id, None)
 
 
 # @dataclass
@@ -500,8 +512,22 @@ class SQLiteRepository(MatchRepository):
         db_objs = self.session.scalars(statement).all()
         return {UserId(obj.id): self._user_to_domain(obj) for obj in db_objs}
 
-    @staticmethod
-    def _task_to_domain(obj: db_models.Task) -> Task:
+    def _get_images_for_task(self, task_id: int) -> list[ImageId]:
+        statement = select(db_models.Image.id).filter_by(task_id=task_id)
+        return [ImageId(image_id) for image_id in self.session.scalars(statement).all()]
+
+    def _persist_new_images(self, task_id: int, task: Task) -> None:
+        existing_ids = set(
+            self.session.scalars(select(db_models.Image.id).filter_by(task_id=task_id))
+        )
+        new_ids = [image_id for image_id in task.images if image_id not in existing_ids]
+        if not new_ids:
+            return
+        db_images = [db_models.Image(id=image_id, task_id=task_id) for image_id in new_ids]
+        self.session.add_all(db_images)
+        self.session.flush()
+
+    def _task_to_domain(self, obj: db_models.Task) -> Task:
         try:
             status = TaskStatus(obj.status)
         except KeyError as e:
@@ -524,13 +550,6 @@ class SQLiteRepository(MatchRepository):
             except (json.JSONDecodeError, ValueError):
                 helper_offers_list = []
 
-        image_paths_list = []
-        if obj.image_paths:
-            try:
-                image_paths_list = json.loads(obj.image_paths)
-            except json.JSONDecodeError:
-                image_paths_list = []
-
         return Task(
             id=obj.id,
             title=obj.title,
@@ -538,7 +557,7 @@ class SQLiteRepository(MatchRepository):
             owner_id=UserId(obj.owner_id),
             helper_id=UserId(obj.helper_id) if obj.helper_id is not None else None,
             helper_offers=helper_offers_list,
-            image_paths=image_paths_list,
+            images=self._get_images_for_task(obj.id),
             status=status,
             category=Category(obj.category),
             location=location,
@@ -559,7 +578,6 @@ class SQLiteRepository(MatchRepository):
             if task.helper_offers
             else None
         )
-        image_paths_json = json.dumps(task.image_paths) if task.image_paths else None
         db_model = db_models.Task(
             title=task.title,
             description=task.description,
@@ -568,7 +586,6 @@ class SQLiteRepository(MatchRepository):
             category=task.category.value,
             helper_id=task.helper_id,
             helper_offers=helper_offers_json,
-            image_paths=image_paths_json,
             updated_at=task.updated_at,
             created_at=task.created_at,
             location_lat=task.location.lat if task.location else None,
@@ -576,6 +593,8 @@ class SQLiteRepository(MatchRepository):
             location_address=task.location.address if task.location else None,
         )
         self.session.add(db_model)
+        self.session.flush()
+        self._persist_new_images(db_model.id, task)
         self.session.commit()
         self.session.refresh(db_model)
         return self._task_to_domain(db_model)
@@ -612,10 +631,19 @@ class SQLiteRepository(MatchRepository):
             if task.helper_offers
             else None
         )
-        db_obj.image_paths = json.dumps(task.image_paths) if task.image_paths else None
         db_obj.status = task.status.value
         db_obj.category = task.category.value
         db_obj.updated_at = task.updated_at
 
+        self._persist_new_images(task.id, task)
         self.session.commit()
         return task
+
+    def images_delete(self, image_ids: list[ImageId]) -> None:
+        if not image_ids:
+            return
+        statement = select(db_models.Image).where(db_models.Image.id.in_(image_ids))
+        db_images = self.session.scalars(statement).all()
+        for db_image in db_images:
+            self.session.delete(db_image)
+        self.session.commit()

@@ -12,14 +12,13 @@ TODO: This is not a nice way of doing the dependency injections.
 config = get_config()
 
 repository = SQLiteRepository(session=Session())
-image_repository = LocalImageRepository()
+image_repository = LocalImageRepository(backend_host=config.BACKEND_HOST)
 
 match_service = MatchService(
     user_messaging_client=FakeMessageClient(config=config),
     repository=repository,
     image_repository=image_repository,
     _fe_host=config.FE_HOST,
-    _backend_host=config.BACKEND_HOST,
 )
 
 

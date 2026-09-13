@@ -51,5 +51,5 @@ class Task(Base):
 class Image(Base):
     __tablename__ = "images"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True, autoincrement="auto")
+    id: Mapped[str] = mapped_column(primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)

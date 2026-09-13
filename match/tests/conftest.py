@@ -22,7 +22,9 @@ def test_client():
 def image_storage_dir(tmp_path):
     storage_dir = tmp_path / "imgs"
     original = bootstrap.match_service.image_repository
-    bootstrap.match_service.image_repository = LocalImageRepository(storage_dir=str(storage_dir))
+    bootstrap.match_service.image_repository = LocalImageRepository(
+        storage_dir=str(storage_dir), backend_host=get_config().BACKEND_HOST
+    )
     yield storage_dir
     bootstrap.match_service.image_repository = original
 

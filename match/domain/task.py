@@ -2,9 +2,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from datetime import timezone as tz
 from enum import StrEnum
+from typing import NewType
 
 from match.domain.exceptions import DomainException, InvalidLocation, InvalidTaskAction, NotAnOwner
 from match.domain.user import User, UserId
+
+ImageId = NewType("ImageId", str)
 
 
 class TaskStatus(StrEnum):
@@ -87,7 +90,7 @@ class Task:
     location: Location | None
     helper_id: UserId | None = None
     helper_offers: list[HelperOffer] = field(default_factory=list)
-    image_paths: list[str] = field(default_factory=list)
+    images: list[ImageId] = field(default_factory=list)
     updated_at: datetime | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(tz.utc))
 
@@ -211,27 +214,25 @@ class Task:
             self.location = location
         self._post_task_update()
 
-    def add_images(self, user: User, image_paths: list[str]) -> None:
+    def add_images(self, user: User, image_ids: list[ImageId]) -> None:
         try:
             self._validate_owner(user)
         except NotAnOwner as e:
             raise InvalidTaskAction from e
 
-        for path in image_paths:
-            if path not in self.image_paths:
-                self.image_paths.append(path)
+        self.images.extend(image_ids)
         self._post_task_update()
 
-    def remove_image(self, user: User, image_id: str) -> None:
+    def remove_image(self, user: User, image_id: ImageId) -> None:
         try:
             self._validate_owner(user)
         except NotAnOwner as e:
             raise InvalidTaskAction from e
 
-        if image_id not in self.image_paths:
+        if image_id not in self.images:
             raise DomainException(f"Image {image_id} not found on task.")
 
-        self.image_paths.remove(image_id)
+        self.images.remove(image_id)
         self._post_task_update()
 
     def close(self, user: User) -> None:

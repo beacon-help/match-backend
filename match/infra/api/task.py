@@ -97,10 +97,10 @@ def create_task(
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
 
 
-@router.get("/images/{image_id:path}")
+@router.get("/images/{image_id}")
 def get_task_image(image_id: str, service: MatchService = Depends(get_service)) -> Response:
     try:
-        content = service.image_repository.read(image_id)
+        content = service.image_repository.read([image_id])[image_id]
     except FileNotFoundError:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
     return Response(content=content, media_type="application/octet-stream")
@@ -124,7 +124,7 @@ def add_task_images(
     return service.format_task_response(task)
 
 
-@router.delete("/{task_id}/images/{image_id:path}", response_model=TaskSchema)
+@router.delete("/{task_id}/images/{image_id}", response_model=TaskSchema)
 def remove_task_image(
     task_id: int,
     image_id: str,
