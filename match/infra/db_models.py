@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from match.db import Base
@@ -41,9 +41,15 @@ class Task(Base):
     owner_id: Mapped[int] = mapped_column()
     helper_id: Mapped[int | None] = mapped_column()
     helper_offers: Mapped[str | None] = mapped_column()
-    image_paths: Mapped[str | None] = mapped_column()
     updated_at: Mapped[datetime | None] = mapped_column()
     created_at: Mapped[datetime] = mapped_column()
     location_lat: Mapped[float | None] = mapped_column()
     location_lon: Mapped[float | None] = mapped_column()
     location_address: Mapped[str | None] = mapped_column()
+
+
+class Image(Base):
+    __tablename__ = "images"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True, autoincrement="auto")
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
