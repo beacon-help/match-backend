@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 
 from match.app.service import MatchService
 from match.bootstrap import get_service
@@ -94,6 +94,33 @@ def create_task(
         return service.format_task_response(task)
     except PermissionDenied:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
+
+
+@router.get("/images/{image_id:path}")
+def get_task_image(image_id: str, service: MatchService = Depends(get_service)) -> Response:
+    try:
+        content = service.image_repository.read(image_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
+    return Response(content=content, media_type="application/octet-stream")
+
+
+@router.post("/{task_id}/images", response_model=TaskSchema, status_code=HTTPStatus.CREATED)
+def add_task_images(
+    task_id: int,
+    images: list[UploadFile] = File(...),
+    user: User = Depends(verified_user),
+    service: MatchService = Depends(get_service),
+) -> dict:
+    try:
+        task = service.task_add_images(
+            task_id, owner_id=user.id, images=[image.file.read() for image in images]
+        )
+    except TaskNotFound:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
+    except InvalidTaskAction as e:
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
+    return service.format_task_response(task)
 
 
 @router.put("/{task_id}/edit", response_model=TaskSchema)

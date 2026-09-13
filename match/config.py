@@ -20,6 +20,7 @@ class Config:
     ENV: Environment
 
     FE_HOST: str
+    BACKEND_HOST: str
 
     DB_PATH: str
 

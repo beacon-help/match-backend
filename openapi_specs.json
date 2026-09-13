@@ -1,6 +1,23 @@
 {
   "components": {
     "schemas": {
+      "Body_add_task_images_task__task_id__images_post": {
+        "properties": {
+          "images": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Images",
+            "type": "array"
+          }
+        },
+        "required": [
+          "images"
+        ],
+        "title": "Body_add_task_images_task__task_id__images_post",
+        "type": "object"
+      },
       "Body_login_user_login_post": {
         "properties": {
           "client_id": {
@@ -708,6 +725,46 @@
         ]
       }
     },
+    "/task/images/{image_id}": {
+      "get": {
+        "operationId": "get_task_image_task_images__image_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_id",
+            "required": true,
+            "schema": {
+              "title": "Image Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Task Image",
+        "tags": [
+          "task"
+        ]
+      }
+    },
     "/task/locations": {
       "get": {
         "operationId": "list_task_locations_task_locations_get",
@@ -887,6 +944,63 @@
           }
         ],
         "summary": "Edit Task",
+        "tags": [
+          "task"
+        ]
+      }
+    },
+    "/task/{task_id}/images": {
+      "post": {
+        "operationId": "add_task_images_task__task_id__images_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_task_images_task__task_id__images_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Add Task Images",
         "tags": [
           "task"
         ]

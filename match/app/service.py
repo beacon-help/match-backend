@@ -21,9 +21,13 @@ class MatchService:
     repository: MatchRepository
     image_repository: ImageRepository
     _fe_host: str
+    _backend_host: str
 
     def _construct_verification_url(self, code: str) -> str:
         return f"{self._fe_host}/verify/{code}"
+
+    def _image_url(self, image_id: str) -> str:
+        return f"{self._backend_host}/task/images/{image_id}"
 
     def _create_user(
         self,
@@ -141,7 +145,7 @@ class MatchService:
         task_dict["owner"] = self._user_to_summary(owner)
         task_dict["helper"] = self._user_to_summary(helper) if helper else None
 
-        task_dict["image_urls"] = []
+        task_dict["image_urls"] = [self._image_url(p) for p in task_dict.pop("image_paths")]
 
         return task_dict
 
@@ -234,6 +238,14 @@ class MatchService:
             category=category_enum,
             location=location,
         )
+        task = self.repository.task_update(task)
+        return task
+
+    def task_add_images(self, task_id: int, owner_id: int, images: list[bytes]) -> Task:
+        task = self.get_task_by_id(task_id)
+        owner = self.get_user_by_id(owner_id)
+        image_paths = [self.image_repository.upload(image, task_id) for image in images]
+        task.add_images(owner, image_paths)
         task = self.repository.task_update(task)
         return task
 

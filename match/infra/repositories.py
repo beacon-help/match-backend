@@ -524,6 +524,13 @@ class SQLiteRepository(MatchRepository):
             except (json.JSONDecodeError, ValueError):
                 helper_offers_list = []
 
+        image_paths_list = []
+        if obj.image_paths:
+            try:
+                image_paths_list = json.loads(obj.image_paths)
+            except json.JSONDecodeError:
+                image_paths_list = []
+
         return Task(
             id=obj.id,
             title=obj.title,
@@ -531,6 +538,7 @@ class SQLiteRepository(MatchRepository):
             owner_id=UserId(obj.owner_id),
             helper_id=UserId(obj.helper_id) if obj.helper_id is not None else None,
             helper_offers=helper_offers_list,
+            image_paths=image_paths_list,
             status=status,
             category=Category(obj.category),
             location=location,
@@ -551,6 +559,7 @@ class SQLiteRepository(MatchRepository):
             if task.helper_offers
             else None
         )
+        image_paths_json = json.dumps(task.image_paths) if task.image_paths else None
         db_model = db_models.Task(
             title=task.title,
             description=task.description,
@@ -559,6 +568,7 @@ class SQLiteRepository(MatchRepository):
             category=task.category.value,
             helper_id=task.helper_id,
             helper_offers=helper_offers_json,
+            image_paths=image_paths_json,
             updated_at=task.updated_at,
             created_at=task.created_at,
             location_lat=task.location.lat if task.location else None,
@@ -602,6 +612,7 @@ class SQLiteRepository(MatchRepository):
             if task.helper_offers
             else None
         )
+        db_obj.image_paths = json.dumps(task.image_paths) if task.image_paths else None
         db_obj.status = task.status.value
         db_obj.category = task.category.value
         db_obj.updated_at = task.updated_at

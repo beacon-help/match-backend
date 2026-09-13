@@ -315,3 +315,70 @@ def test_edit_task_not_found(test_client):
     )
 
     assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_add_task_images_happy_path(test_client):
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
+        headers=build_headers(100),
+    ).json()
+
+    response = test_client.post(
+        f"/task/{new_task['id']}/images",
+        files={"images": ("photo.jpg", b"fake image bytes", "image/jpeg")},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    task = response.json()
+    assert len(task["image_urls"]) == 1
+    image_url = task["image_urls"][0]
+
+    image_path = image_url.split("/task/images/", 1)[1]
+    image_response = test_client.get(f"/task/images/{image_path}")
+
+    assert image_response.status_code == HTTPStatus.OK
+    assert image_response.content == b"fake image bytes"
+
+
+def test_add_task_images_rejects_non_owner(test_client):
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "NYC"},
+        },
+        headers=build_headers(100),
+    ).json()
+
+    response = test_client.post(
+        f"/task/{new_task['id']}/images",
+        files={"images": ("photo.jpg", b"fake image bytes", "image/jpeg")},
+        headers=build_headers(101),
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_add_task_images_not_found(test_client):
+    response = test_client.post(
+        "/task/999999/images",
+        files={"images": ("photo.jpg", b"fake image bytes", "image/jpeg")},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_get_task_image_not_found(test_client):
+    response = test_client.get("/task/images/data/imgs/does-not-exist")
+
+    assert response.status_code == HTTPStatus.NOT_FOUND

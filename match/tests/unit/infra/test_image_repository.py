@@ -20,7 +20,7 @@ def image_repository(temp_storage):
 def test_upload_creates_file(image_repository, temp_storage):
     image_data = b"fake image data"
 
-    file_path = image_repository.upload(image_data)
+    file_path = image_repository.upload(image_data, task_id=1)
 
     assert Path(file_path).exists()
     assert Path(file_path).read_bytes() == image_data
@@ -29,15 +29,23 @@ def test_upload_creates_file(image_repository, temp_storage):
 def test_upload_returns_path_string(image_repository):
     image_data = b"test image"
 
-    result = image_repository.upload(image_data)
+    result = image_repository.upload(image_data, task_id=1)
 
     assert isinstance(result, str)
-    assert result.startswith(image_repository.storage_dir.as_posix())
+    assert result.startswith((image_repository.storage_dir / "1").as_posix())
+
+
+def test_upload_namespaces_by_task_id(image_repository):
+    image_data = b"test image"
+
+    result = image_repository.upload(image_data, task_id=42)
+
+    assert Path(result).parent.name == "42"
 
 
 def test_delete_removes_file(image_repository):
     image_data = b"image to delete"
-    file_path = image_repository.upload(image_data)
+    file_path = image_repository.upload(image_data, task_id=1)
 
     image_repository.delete(file_path)
 

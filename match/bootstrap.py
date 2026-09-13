@@ -19,6 +19,7 @@ match_service = MatchService(
     repository=repository,
     image_repository=image_repository,
     _fe_host=config.FE_HOST,
+    _backend_host=config.BACKEND_HOST,
 )
 
 
