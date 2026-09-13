@@ -60,7 +60,9 @@ uv add "package==version"
 
 ## Code style
 
-Do not add comments or docstrings unless the reason behind the code is non-obvious. Well-named identifiers are sufficient documentation.
+- Do not add comments or docstrings unless the reason behind the code is non-obvious. Well-named identifiers are sufficient documentation.
+- Keep commit messages concise: a short imperative subject line, body only when it adds something the diff doesn't.
+- Never add the `Co-Authored-By: Claude ...` trailer or any other Claude/Claude Code attribution.
 
 ## Local dev
 
