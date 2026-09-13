@@ -256,8 +256,8 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.remove_image(owner, image_id)
-        self.image_repository.delete(image_id)
         task = self.repository.task_update(task)
+        self.image_repository.delete(image_id)
         return task
 
     def task_close(self, task_id: int, owner_id: int) -> Task:
