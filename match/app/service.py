@@ -3,6 +3,7 @@ from typing import Any, Iterable
 
 from match.domain.exceptions import (
     AuthenticationFailed,
+    InvalidTaskAction,
     MatchServiceException,
     UserNotFound,
     UserVerificationCodeInvalid,
@@ -244,6 +245,8 @@ class MatchService:
     def task_add_images(self, task_id: int, owner_id: int, images: list[bytes]) -> Task:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
+        if task.owner_id != owner.id:
+            raise InvalidTaskAction("User is not an owner.")
         image_paths = [self.image_repository.upload(image, task_id) for image in images]
         task.add_images(owner, image_paths)
         task = self.repository.task_update(task)

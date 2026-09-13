@@ -347,7 +347,7 @@ def test_add_task_images_happy_path(test_client):
     assert image_response.content == b"fake image bytes"
 
 
-def test_add_task_images_rejects_non_owner(test_client):
+def test_add_task_images_rejects_non_owner(test_client, image_storage_dir):
     new_task = test_client.post(
         "/task",
         json={
@@ -366,6 +366,8 @@ def test_add_task_images_rejects_non_owner(test_client):
     )
 
     assert response.status_code == HTTPStatus.FORBIDDEN
+    task_image_dir = image_storage_dir / str(new_task["id"])
+    assert not task_image_dir.exists()
 
 
 def test_add_task_images_not_found(test_client):
