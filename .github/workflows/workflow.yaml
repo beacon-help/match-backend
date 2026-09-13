@@ -43,7 +43,9 @@ jobs:
           docker compose up -d
           docker exec $DOCKER_SERVICE cp dotenv/.env.test dotenv/.env
       - name: Reset test DB
-        run: docker exec $DOCKER_SERVICE rm -f /usr/src/app/data/db/app.db
+        run: |
+          docker exec $DOCKER_SERVICE mkdir -p /usr/src/app/data/db
+          docker exec $DOCKER_SERVICE rm -f /usr/src/app/data/db/app.db
       - name: Initialize test DB
         run: docker exec $DOCKER_SERVICE uv run alembic upgrade head
       - name: Run Pytest
