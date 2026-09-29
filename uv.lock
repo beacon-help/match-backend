@@ -425,6 +425,7 @@ dependencies = [
     { name = "black" },
     { name = "fastapi", extra = ["standard"] },
     { name = "isort" },
+    { name = "match-config" },
     { name = "mypy" },
     { name = "pwdlib", extra = ["argon2"] },
     { name = "pydantic" },
@@ -442,6 +443,7 @@ requires-dist = [
     { name = "black", specifier = "==24.10" },
     { name = "fastapi", extras = ["standard"], specifier = "==0.115.6" },
     { name = "isort", specifier = "==5.13.2" },
+    { name = "match-config", editable = "vendor/match-config/python" },
     { name = "mypy", specifier = "==1.14.1" },
     { name = "pwdlib", extras = ["argon2"], specifier = "==0.3.0" },
     { name = "pydantic", specifier = "==2.10.5" },
@@ -451,6 +453,28 @@ requires-dist = [
     { name = "python-dotenv", specifier = "==1.0.1" },
     { name = "sentry-sdk", extras = ["fastapi"], specifier = "==2.22.0" },
     { name = "sqlalchemy", specifier = "==2.0.43" },
+]
+
+[[package]]
+name = "match-config"
+version = "1.0.0"
+source = { editable = "vendor/match-config/python" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.10" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.14" },
+    { name = "pytest", specifier = ">=8.3" },
+    { name = "types-pyyaml", specifier = ">=6.0" },
 ]
 
 [[package]]

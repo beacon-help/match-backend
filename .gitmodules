@@ -1,0 +1,3 @@
+[submodule "vendor/match-config"]
+	path = vendor/match-config
+	url = https://github.com/beacon-help/match-config
