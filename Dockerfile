@@ -3,6 +3,7 @@ FROM ghcr.io/astral-sh/uv:python3.13-alpine
 RUN apk -U upgrade && apk add bash sqlite
 
 COPY pyproject.toml uv.lock ./
+COPY vendor/match-config ./vendor/match-config
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --frozen
