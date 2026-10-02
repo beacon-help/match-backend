@@ -1,9 +1,10 @@
 import json
 import math
+import random
 from collections import defaultdict
 from collections.abc import Sequence
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from datetime import timezone as tz
 
 import sqlalchemy
@@ -72,15 +73,20 @@ _SEED_EVENT_TYPES = {
 
 
 def _seed_events(task_id: int, owner_id: int, helper_id: int) -> list[TaskEvent]:
-    return [
-        TaskEvent(
-            type=event_type,
-            actor_id=UserId(helper_id if event_type == TaskEventType.OFFERED else owner_id),
-            helper_id=None if event_type == TaskEventType.CREATED else UserId(helper_id),
-            occurred_at=_SEED_TIME,
+    rng = random.Random(task_id)
+    events = []
+    occurred_at = _SEED_TIME
+    for event_type in _SEED_EVENT_TYPES[task_id]:
+        events.append(
+            TaskEvent(
+                type=event_type,
+                actor_id=UserId(helper_id if event_type == TaskEventType.OFFERED else owner_id),
+                helper_id=None if event_type == TaskEventType.CREATED else UserId(helper_id),
+                occurred_at=occurred_at,
+            )
         )
-        for event_type in _SEED_EVENT_TYPES[task_id]
-    ]
+        occurred_at += timedelta(minutes=rng.randint(10, 48 * 60))
+    return events
 
 
 class InMemoryMatchRepository(MatchRepository):

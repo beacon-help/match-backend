@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import random
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from datetime import timezone as tz
 from pathlib import Path
 
@@ -169,6 +170,11 @@ def _add_tasks(session: SQLAlchemySession, owner_id: int, helper_id: int) -> Non
         },
     ]
     for i, event_types in enumerate(TASK_EVENT_SEQUENCES):
+        gaps = [timedelta(minutes=random.randint(10, 48 * 60)) for _ in event_types[1:]]
+        created_at = now - sum(gaps, timedelta())
+        occurred_ats = [created_at]
+        for gap in gaps:
+            occurred_ats.append(occurred_ats[-1] + gap)
         category = categories[i % len(categories)]
         has_helper = len(event_types) > 1
         data = task_data[i % len(task_data)]
@@ -179,7 +185,7 @@ def _add_tasks(session: SQLAlchemySession, owner_id: int, helper_id: int) -> Non
             helper_id=helper_id if has_helper else None,
             category=category.value,
             updated_at=now if has_helper else None,
-            created_at=now,
+            created_at=created_at,
             location_lat=data["lat"],
             location_lon=data["lon"],
             location_address=data["address"],
@@ -192,9 +198,9 @@ def _add_tasks(session: SQLAlchemySession, owner_id: int, helper_id: int) -> Non
                 type=event_type.value,
                 actor_id=helper_id if event_type == TaskEventType.OFFERED else owner_id,
                 helper_id=None if event_type == TaskEventType.CREATED else helper_id,
-                occurred_at=now,
+                occurred_at=occurred_at,
             )
-            for event_type in event_types
+            for event_type, occurred_at in zip(event_types, occurred_ats)
         )
 
 

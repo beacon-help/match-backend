@@ -18,15 +18,21 @@ CREATED_EVENT = {
 
 
 def insert_events(session, *events):
-    for task_id, event_type, actor_id, helper_id in events:
+    for hour, (task_id, event_type, actor_id, helper_id) in enumerate(events):
         session.execute(
             text(
                 """
                 INSERT INTO task_events (task_id,type,actor_id,helper_id,message,occurred_at)
-                VALUES (:task_id, :type, :actor_id, :helper_id, null, '2024-11-14 00:00:00.000000');
+                VALUES (:task_id, :type, :actor_id, :helper_id, null, :occurred_at);
                 """
             ),
-            {"task_id": task_id, "type": event_type, "actor_id": actor_id, "helper_id": helper_id},
+            {
+                "task_id": task_id,
+                "type": event_type,
+                "actor_id": actor_id,
+                "helper_id": helper_id,
+                "occurred_at": f"2024-11-14 {hour:02d}:00:00.000000",
+            },
         )
 
 
