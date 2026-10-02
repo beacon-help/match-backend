@@ -27,7 +27,7 @@ bash:
 	docker compose exec -it $(SERVICE) bash
 
 db-shell:
-	make up
+	make upd
 	docker compose exec -it $(SERVICE) sqlite3 /usr/src/app/data/db/app.db
 
 test:
