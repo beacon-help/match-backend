@@ -52,6 +52,26 @@ class HelperOffer:
         )
 
 
+class TaskEventType(StrEnum):
+    CREATED = "created"
+    OFFERED = "offered"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CLOSED = "closed"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+@dataclass
+class TaskEvent:
+    type: TaskEventType
+    actor_id: UserId
+    occurred_at: datetime
+    helper_id: UserId | None = None
+    message: str | None = None
+    id: int | None = None
+
+
 def _validate_coordinates(lat: float, lon: float, radius_km: float | None = None) -> None:
     if not -90 <= lat <= 90:
         raise InvalidLocation("Invalid latitude.")
@@ -91,6 +111,7 @@ class Task:
     helper_id: UserId | None = None
     helper_offers: list[HelperOffer] = field(default_factory=list)
     images: list[ImageId] = field(default_factory=list)
+    events: list[TaskEvent] = field(default_factory=list)
     updated_at: datetime | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(tz.utc))
 
@@ -106,6 +127,7 @@ class Task:
         category: Category,
         location: Location | None,
     ) -> "Task":
+        created_at = datetime.now(tz.utc)
         return cls(
             id=None,
             status=TaskStatus.OPEN,
@@ -116,6 +138,27 @@ class Task:
             description=description,
             category=category,
             location=location,
+            events=[
+                TaskEvent(type=TaskEventType.CREATED, actor_id=owner.id, occurred_at=created_at)
+            ],
+            created_at=created_at,
+        )
+
+    def _record_event(
+        self,
+        type: TaskEventType,
+        actor_id: UserId,
+        helper_id: UserId | None = None,
+        message: str | None = None,
+    ) -> None:
+        self.events.append(
+            TaskEvent(
+                type=type,
+                actor_id=actor_id,
+                occurred_at=datetime.now(tz.utc),
+                helper_id=helper_id,
+                message=message,
+            )
         )
 
     def _post_task_update(self) -> None:
@@ -138,6 +181,9 @@ class Task:
         self.helper_offers.append(offer)
         self.helper_id = helper_id
         self.status = TaskStatus.PENDING
+        self._record_event(
+            TaskEventType.OFFERED, actor_id=helper_id, helper_id=helper_id, message=message
+        )
         self._post_task_update()
 
     def approve_helper(self, user: User, helper_id: UserId) -> None:
@@ -151,6 +197,7 @@ class Task:
         if self.helper_id != helper_id:
             raise InvalidTaskAction(f"Incorrect helper_id {helper_id}.")
         self.status = TaskStatus.APPROVED
+        self._record_event(TaskEventType.APPROVED, actor_id=user.id, helper_id=helper_id)
         self._post_task_update()
 
     def reject_helper(self, user: User, helper_id: UserId) -> None:
@@ -167,6 +214,7 @@ class Task:
             raise InvalidTaskAction(f"Incorrect helper_id {helper_id}")
         self.status = TaskStatus.OPEN
         self.helper_id = None
+        self._record_event(TaskEventType.REJECTED, actor_id=user.id, helper_id=helper_id)
         self._post_task_update()
 
     def report_succeeded(self, user: User) -> None:
@@ -178,6 +226,7 @@ class Task:
         if self.status != TaskStatus.APPROVED:
             raise InvalidTaskAction("Cannot report this task.")
         self.status = TaskStatus.SUCCEEDED
+        self._record_event(TaskEventType.SUCCEEDED, actor_id=user.id, helper_id=self.helper_id)
         self._post_task_update()
 
     def report_failed(self, user: User) -> None:
@@ -189,6 +238,7 @@ class Task:
         if self.status != TaskStatus.APPROVED:
             raise InvalidTaskAction("Cannot report this task.")
         self.status = TaskStatus.FAILED
+        self._record_event(TaskEventType.FAILED, actor_id=user.id, helper_id=self.helper_id)
         self._post_task_update()
 
     def edit(
@@ -246,4 +296,5 @@ class Task:
         if self.status in (TaskStatus.SUCCEEDED, TaskStatus.FAILED):
             raise InvalidTaskAction("Task is already finished.")
         self.status = TaskStatus.CANCELLED
+        self._record_event(TaskEventType.CLOSED, actor_id=user.id)
         self._post_task_update()

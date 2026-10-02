@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey
+from sqlalchemy import CheckConstraint, Column, ForeignKey, Integer, MetaData, String, Table
 from sqlalchemy.orm import Mapped, mapped_column
 
 from match.db import Base
@@ -36,7 +36,6 @@ class Task(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True, autoincrement="auto")
     title: Mapped[str] = mapped_column()
     description: Mapped[str] = mapped_column()
-    status: Mapped[str] = mapped_column()
     category: Mapped[str] = mapped_column()
     owner_id: Mapped[int] = mapped_column()
     helper_id: Mapped[int | None] = mapped_column()
@@ -53,3 +52,24 @@ class Image(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
+
+
+class TaskEvent(Base):
+    __tablename__ = "task_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement="auto")
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), index=True)
+    type: Mapped[str] = mapped_column()
+    actor_id: Mapped[int] = mapped_column()
+    helper_id: Mapped[int | None] = mapped_column()
+    message: Mapped[str | None] = mapped_column()
+    occurred_at: Mapped[datetime] = mapped_column()
+
+
+# View created by migration d56fce9e1540; kept off Base.metadata so create_all skips it.
+tasks_with_status = Table(
+    "tasks_with_status",
+    MetaData(),
+    Column("id", Integer, primary_key=True),
+    Column("status", String),
+)

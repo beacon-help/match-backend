@@ -5,7 +5,7 @@ from enum import Enum
 from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr
 from pydantic_extra_types.coordinate import Latitude, Longitude
 
-from match.domain.task import Category
+from match.domain.task import Category, TaskEventType
 from match.domain.user import UserType, VolunteerProperties
 
 
@@ -96,6 +96,15 @@ class ImageSchema(BaseModel):
     path: AnyUrl
 
 
+class TaskEventSchema(BaseModel):
+    id: int
+    type: TaskEventType
+    actor: TaskUserSchema
+    helper: TaskUserSchema | None
+    message: str | None
+    occurred_at: datetime
+
+
 class TaskSchema(BaseModel):
     id: int
     title: str
@@ -109,6 +118,7 @@ class TaskSchema(BaseModel):
     location: Location
     category: Category
     images: list[ImageSchema]
+    events: list[TaskEventSchema]
 
 
 class TaskLocationSchema(BaseModel):

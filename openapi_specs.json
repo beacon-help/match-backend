@@ -307,6 +307,69 @@
         "title": "TaskEditRequestSchema",
         "type": "object"
       },
+      "TaskEventSchema": {
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/TaskUserSchema"
+          },
+          "helper": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskUserSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/TaskEventType"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "actor",
+          "helper",
+          "message",
+          "occurred_at"
+        ],
+        "title": "TaskEventSchema",
+        "type": "object"
+      },
+      "TaskEventType": {
+        "enum": [
+          "created",
+          "offered",
+          "approved",
+          "rejected",
+          "closed",
+          "succeeded",
+          "failed"
+        ],
+        "title": "TaskEventType",
+        "type": "string"
+      },
       "TaskLocationSchema": {
         "properties": {
           "id": {
@@ -337,6 +400,13 @@
           "description": {
             "title": "Description",
             "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/TaskEventSchema"
+            },
+            "title": "Events",
+            "type": "array"
           },
           "helper": {
             "anyOf": [
@@ -402,7 +472,8 @@
           "description",
           "location",
           "category",
-          "images"
+          "images",
+          "events"
         ],
         "title": "TaskSchema",
         "type": "object"

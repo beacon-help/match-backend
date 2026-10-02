@@ -1,16 +1,27 @@
 import json
 import math
+from collections import defaultdict
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime
 from datetime import timezone as tz
 
 import sqlalchemy
-from sqlalchemy import orm, select
+from sqlalchemy import Select, orm, select
 from sqlalchemy.orm.session import Session as SQLAlchemySession
 
 from match.domain import exceptions
 from match.domain.interfaces import MatchRepository, TaskFilter
-from match.domain.task import Category, HelperOffer, ImageId, Location, Task, TaskStatus
+from match.domain.task import (
+    Category,
+    HelperOffer,
+    ImageId,
+    Location,
+    Task,
+    TaskEvent,
+    TaskEventType,
+    TaskStatus,
+)
 from match.domain.user import User, UserId, UserType
 from match.infra import db_models
 
@@ -48,11 +59,36 @@ def _filter_tasks_by_radius(tasks: list[Task], filters: TaskFilter) -> list[Task
     ]
 
 
+_SEED_TIME = datetime(2024, 11, 14, tzinfo=tz.utc)
+_APPROVED_EVENTS = [TaskEventType.CREATED, TaskEventType.OFFERED, TaskEventType.APPROVED]
+_SEED_EVENT_TYPES = {
+    100: [TaskEventType.CREATED],
+    101: [TaskEventType.CREATED, TaskEventType.OFFERED],
+    102: _APPROVED_EVENTS,
+    103: [*_APPROVED_EVENTS, TaskEventType.SUCCEEDED],
+    104: [*_APPROVED_EVENTS, TaskEventType.FAILED],
+    105: [*_APPROVED_EVENTS, TaskEventType.CLOSED],
+}
+
+
+def _seed_events(task_id: int, owner_id: int, helper_id: int) -> list[TaskEvent]:
+    return [
+        TaskEvent(
+            type=event_type,
+            actor_id=UserId(helper_id if event_type == TaskEventType.OFFERED else owner_id),
+            helper_id=None if event_type == TaskEventType.CREATED else UserId(helper_id),
+            occurred_at=_SEED_TIME,
+        )
+        for event_type in _SEED_EVENT_TYPES[task_id]
+    ]
+
+
 class InMemoryMatchRepository(MatchRepository):
     def __init__(self, test_data: bool = True) -> None:
         self.users: dict[int, User] = {}
         self.tasks: dict[int, Task] = {}
         self.images: dict[str, int] = {}
+        self._last_event_id = 0
         if test_data:
             self._setup_test_data()
 
@@ -60,6 +96,12 @@ class InMemoryMatchRepository(MatchRepository):
         for image_id in task.images:
             if image_id not in self.images:
                 self.images[image_id] = task_id
+
+    def _persist_new_events(self, task: Task) -> None:
+        for event in task.events:
+            if event.id is None:
+                self._last_event_id += 1
+                event.id = self._last_event_id
 
     def _setup_test_data(self) -> None:
         test_users = {
@@ -110,11 +152,12 @@ class InMemoryMatchRepository(MatchRepository):
                 status=TaskStatus.OPEN,
                 category=Category.OTHER,
                 location=test_location,
+                events=_seed_events(100, owner_id=100, helper_id=101),
                 updated_at=None,
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
             101: Task(
-                id=100,
+                id=101,
                 title="Help",
                 description="please help me",
                 owner_id=UserId(100),
@@ -122,11 +165,12 @@ class InMemoryMatchRepository(MatchRepository):
                 status=TaskStatus.PENDING,
                 category=Category.OTHER,
                 location=test_location,
+                events=_seed_events(101, owner_id=100, helper_id=101),
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
             102: Task(
-                id=100,
+                id=102,
                 title="Help",
                 description="please help me",
                 owner_id=UserId(100),
@@ -134,11 +178,12 @@ class InMemoryMatchRepository(MatchRepository):
                 status=TaskStatus.APPROVED,
                 category=Category.OTHER,
                 location=test_location,
+                events=_seed_events(102, owner_id=100, helper_id=101),
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
             103: Task(
-                id=100,
+                id=103,
                 title="Help",
                 description="please help me",
                 owner_id=UserId(100),
@@ -146,11 +191,12 @@ class InMemoryMatchRepository(MatchRepository):
                 status=TaskStatus.SUCCEEDED,
                 category=Category.OTHER,
                 location=test_location,
+                events=_seed_events(103, owner_id=100, helper_id=101),
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
             104: Task(
-                id=100,
+                id=104,
                 title="Help",
                 description="please help me",
                 owner_id=UserId(100),
@@ -158,11 +204,12 @@ class InMemoryMatchRepository(MatchRepository):
                 status=TaskStatus.FAILED,
                 category=Category.OTHER,
                 location=test_location,
+                events=_seed_events(104, owner_id=100, helper_id=101),
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
             105: Task(
-                id=100,
+                id=105,
                 title="Help",
                 description="please help me",
                 owner_id=UserId(100),
@@ -170,11 +217,14 @@ class InMemoryMatchRepository(MatchRepository):
                 status=TaskStatus.CANCELLED,
                 category=Category.OTHER,
                 location=test_location,
+                events=_seed_events(105, owner_id=100, helper_id=101),
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
             ),
         }
 
+        for task in test_tasks.values():
+            self._persist_new_events(task)
         self.users.update(test_users)
         self.tasks.update(test_tasks)
 
@@ -223,6 +273,7 @@ class InMemoryMatchRepository(MatchRepository):
             task_id += 1
         task.id = task_id
         self._persist_new_images(task_id, task)
+        self._persist_new_events(task)
         self.tasks[task_id] = deepcopy(task)
         return deepcopy(task)
 
@@ -250,6 +301,7 @@ class InMemoryMatchRepository(MatchRepository):
             raise exceptions.RepositoryException("Cannot update task without id.")
         self.get_task_by_id(task.id)
         self._persist_new_images(task.id, task)
+        self._persist_new_events(task)
         self.tasks[task.id] = task
         return deepcopy(task)
 
@@ -325,7 +377,6 @@ class SQLiteRepository(MatchRepository):
                 description="please help me",
                 owner_id=100,
                 helper_id=None,
-                status=TaskStatus.OPEN.value,
                 category=Category.OTHER.value,
                 updated_at=None,
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
@@ -339,7 +390,6 @@ class SQLiteRepository(MatchRepository):
                 description="please help me",
                 owner_id=100,
                 helper_id=101,
-                status=TaskStatus.PENDING.value,
                 category=Category.OTHER.value,
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
@@ -353,7 +403,6 @@ class SQLiteRepository(MatchRepository):
                 description="please help me",
                 owner_id=100,
                 helper_id=101,
-                status=TaskStatus.APPROVED.value,
                 category=Category.OTHER.value,
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
@@ -367,7 +416,6 @@ class SQLiteRepository(MatchRepository):
                 description="please help me",
                 owner_id=100,
                 helper_id=101,
-                status=TaskStatus.SUCCEEDED.value,
                 category=Category.OTHER.value,
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
@@ -381,7 +429,6 @@ class SQLiteRepository(MatchRepository):
                 description="please help me",
                 owner_id=100,
                 helper_id=101,
-                status=TaskStatus.FAILED.value,
                 category=Category.OTHER.value,
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
@@ -395,7 +442,6 @@ class SQLiteRepository(MatchRepository):
                 description="please help me",
                 owner_id=100,
                 helper_id=101,
-                status=TaskStatus.CANCELLED.value,
                 category=Category.OTHER.value,
                 updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
                 created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
@@ -409,6 +455,18 @@ class SQLiteRepository(MatchRepository):
             self.session.merge(user)
         for task in test_tasks:
             self.session.merge(task)
+        if not has_tasks:
+            for task_id in _SEED_EVENT_TYPES:
+                self.session.add_all(
+                    db_models.TaskEvent(
+                        task_id=task_id,
+                        type=event.type.value,
+                        actor_id=event.actor_id,
+                        helper_id=event.helper_id,
+                        occurred_at=event.occurred_at,
+                    )
+                    for event in _seed_events(task_id, owner_id=100, helper_id=101)
+                )
         self.session.commit()
 
     def _ensure_test_data(self) -> None:
@@ -512,9 +570,12 @@ class SQLiteRepository(MatchRepository):
         db_objs = self.session.scalars(statement).all()
         return {UserId(obj.id): self._user_to_domain(obj) for obj in db_objs}
 
-    def _get_images_for_task(self, task_id: int) -> list[ImageId]:
-        statement = select(db_models.Image.id).filter_by(task_id=task_id)
-        return [ImageId(image_id) for image_id in self.session.scalars(statement).all()]
+    def _get_images_for_tasks(self, task_ids: list[int]) -> dict[int, list[ImageId]]:
+        statement = select(db_models.Image).where(db_models.Image.task_id.in_(task_ids))
+        images_by_task_id: dict[int, list[ImageId]] = defaultdict(list)
+        for obj in self.session.scalars(statement):
+            images_by_task_id[obj.task_id].append(ImageId(obj.id))
+        return images_by_task_id
 
     def _persist_new_images(self, task_id: int, task: Task) -> None:
         existing_ids = set(
@@ -527,12 +588,59 @@ class SQLiteRepository(MatchRepository):
         self.session.add_all(db_images)
         self.session.flush()
 
-    def _task_to_domain(self, obj: db_models.Task) -> Task:
-        try:
-            status = TaskStatus(obj.status)
-        except KeyError as e:
-            raise e
+    def _get_events_for_tasks(self, task_ids: list[int]) -> dict[int, list[TaskEvent]]:
+        statement = (
+            select(db_models.TaskEvent)
+            .where(db_models.TaskEvent.task_id.in_(task_ids))
+            .order_by(db_models.TaskEvent.occurred_at, db_models.TaskEvent.id)
+        )
+        events_by_task_id: dict[int, list[TaskEvent]] = defaultdict(list)
+        for obj in self.session.scalars(statement):
+            events_by_task_id[obj.task_id].append(
+                TaskEvent(
+                    id=obj.id,
+                    type=TaskEventType(obj.type),
+                    actor_id=UserId(obj.actor_id),
+                    helper_id=UserId(obj.helper_id) if obj.helper_id is not None else None,
+                    message=obj.message,
+                    occurred_at=obj.occurred_at,
+                )
+            )
+        return events_by_task_id
 
+    def _persist_new_events(self, task_id: int, task: Task) -> None:
+        new_events = [event for event in task.events if event.id is None]
+        if not new_events:
+            return
+        db_events = [
+            db_models.TaskEvent(
+                task_id=task_id,
+                type=event.type.value,
+                actor_id=event.actor_id,
+                helper_id=event.helper_id,
+                message=event.message,
+                occurred_at=event.occurred_at,
+            )
+            for event in new_events
+        ]
+        self.session.add_all(db_events)
+        self.session.flush()
+        for event, db_event in zip(new_events, db_events):
+            event.id = db_event.id
+
+    def _tasks_to_domain(self, rows: Sequence[tuple[db_models.Task, str]]) -> list[Task]:
+        task_ids = [obj.id for obj, _ in rows]
+        images_by_task_id = self._get_images_for_tasks(task_ids)
+        events_by_task_id = self._get_events_for_tasks(task_ids)
+        return [
+            self._task_to_domain(obj, status, images_by_task_id[obj.id], events_by_task_id[obj.id])
+            for obj, status in rows
+        ]
+
+    @staticmethod
+    def _task_to_domain(
+        obj: db_models.Task, status: str, images: list[ImageId], events: list[TaskEvent]
+    ) -> Task:
         if obj.location_lat and obj.location_lon and obj.location_address:
             location = Location(
                 lat=obj.location_lat,
@@ -557,8 +665,9 @@ class SQLiteRepository(MatchRepository):
             owner_id=UserId(obj.owner_id),
             helper_id=UserId(obj.helper_id) if obj.helper_id is not None else None,
             helper_offers=helper_offers_list,
-            images=self._get_images_for_task(obj.id),
-            status=status,
+            images=images,
+            events=events,
+            status=TaskStatus(status),
             category=Category(obj.category),
             location=location,
             updated_at=obj.updated_at,
@@ -582,7 +691,6 @@ class SQLiteRepository(MatchRepository):
             title=task.title,
             description=task.description,
             owner_id=task.owner_id,
-            status=task.status.value,
             category=task.category.value,
             helper_id=task.helper_id,
             helper_offers=helper_offers_json,
@@ -595,27 +703,37 @@ class SQLiteRepository(MatchRepository):
         self.session.add(db_model)
         self.session.flush()
         self._persist_new_images(db_model.id, task)
+        self._persist_new_events(db_model.id, task)
         self.session.commit()
-        self.session.refresh(db_model)
-        return self._task_to_domain(db_model)
+        return self.get_task_by_id(db_model.id)
+
+    @staticmethod
+    def _select_tasks_with_status() -> Select[tuple[db_models.Task, str]]:
+        view = db_models.tasks_with_status
+        return select(db_models.Task, view.c.status).join(view, view.c.id == db_models.Task.id)
 
     def get_task_by_id(self, task_id: int) -> Task:
-        db_obj = self._get_task_by_id(task_id)
-        return self._task_to_domain(db_obj)
+        statement = self._select_tasks_with_status().where(db_models.Task.id == task_id)
+        try:
+            row = self.session.execute(statement).tuples().one()
+        except sqlalchemy.orm.exc.NoResultFound:
+            raise exceptions.TaskNotFound
+        return self._tasks_to_domain([row])[0]
 
     def get_tasks(self, filters: TaskFilter | None = None) -> list[Task]:
         filters = filters or {}
-        statement = select(db_models.Task)
+        statement = self._select_tasks_with_status()
         if "status" in filters:
-            statement = statement.filter_by(status=filters["status"].value)
+            statement = statement.where(
+                db_models.tasks_with_status.c.status == filters["status"].value
+            )
         if "category" in filters:
-            statement = statement.filter_by(category=filters["category"].value)
+            statement = statement.where(db_models.Task.category == filters["category"].value)
         if "owner_id" in filters:
-            statement = statement.filter_by(owner_id=filters["owner_id"])
+            statement = statement.where(db_models.Task.owner_id == filters["owner_id"])
         if "helper_id" in filters:
-            statement = statement.filter_by(helper_id=filters["helper_id"])
-        db_objs = self.session.scalars(statement).all()
-        tasks = [self._task_to_domain(obj) for obj in db_objs]
+            statement = statement.where(db_models.Task.helper_id == filters["helper_id"])
+        tasks = self._tasks_to_domain(self.session.execute(statement).tuples().all())
         return _filter_tasks_by_radius(tasks, filters)
 
     def task_update(self, task: Task) -> Task:
@@ -631,11 +749,11 @@ class SQLiteRepository(MatchRepository):
             if task.helper_offers
             else None
         )
-        db_obj.status = task.status.value
         db_obj.category = task.category.value
         db_obj.updated_at = task.updated_at
 
         self._persist_new_images(task.id, task)
+        self._persist_new_events(task.id, task)
         self.session.commit()
         return task
 

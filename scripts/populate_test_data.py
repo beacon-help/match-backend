@@ -10,14 +10,26 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from sqlalchemy.orm.session import Session as SQLAlchemySession
+
 from match.config import Environment, get_config
 from match.db import Session
-from match.domain.task import Category, TaskStatus
+from match.domain.task import Category, TaskEventType
 from match.domain.user import UserType, VolunteerProperties
 from match.infra import db_models
 from match.infra.api.security import hash_password
 
 ALLOWED_ENVS = (Environment.TEST, Environment.DEV)
+
+_APPROVED = [TaskEventType.CREATED, TaskEventType.OFFERED, TaskEventType.APPROVED]
+TASK_EVENT_SEQUENCES: list[list[TaskEventType]] = [
+    [TaskEventType.CREATED],
+    [TaskEventType.CREATED, TaskEventType.OFFERED],
+    _APPROVED,
+    [*_APPROVED, TaskEventType.SUCCEEDED],
+    [*_APPROVED, TaskEventType.FAILED],
+    [*_APPROVED, TaskEventType.CLOSED],
+]
 
 
 def _build_users() -> list[db_models.User]:
@@ -103,9 +115,8 @@ def _build_users() -> list[db_models.User]:
     ]
 
 
-def _build_tasks(owner_id: int, helper_id: int) -> list[db_models.Task]:
+def _add_tasks(session: SQLAlchemySession, owner_id: int, helper_id: int) -> None:
     now = datetime.now(tz.utc)
-    statuses: list[TaskStatus] = list(TaskStatus)
     categories: list[Category] = list(Category)
     task_data = [
         {
@@ -157,27 +168,34 @@ def _build_tasks(owner_id: int, helper_id: int) -> list[db_models.Task]:
             "address": "La Torre, Valencia, Spain",
         },
     ]
-    tasks = []
-    for i, status in enumerate(statuses):
+    for i, event_types in enumerate(TASK_EVENT_SEQUENCES):
         category = categories[i % len(categories)]
-        has_helper = status != TaskStatus.OPEN
+        has_helper = len(event_types) > 1
         data = task_data[i % len(task_data)]
-        tasks.append(
-            db_models.Task(
-                title=data["title"],
-                description=f"A task with status {status.value}",
-                owner_id=owner_id,
-                helper_id=helper_id if has_helper else None,
-                status=status.value,
-                category=category.value,
-                updated_at=now if has_helper else None,
-                created_at=now,
-                location_lat=data["lat"],
-                location_lon=data["lon"],
-                location_address=data["address"],
-            )
+        task = db_models.Task(
+            title=data["title"],
+            description=f"A task ending with {event_types[-1].value}",
+            owner_id=owner_id,
+            helper_id=helper_id if has_helper else None,
+            category=category.value,
+            updated_at=now if has_helper else None,
+            created_at=now,
+            location_lat=data["lat"],
+            location_lon=data["lon"],
+            location_address=data["address"],
         )
-    return tasks
+        session.add(task)
+        session.flush()
+        session.add_all(
+            db_models.TaskEvent(
+                task_id=task.id,
+                type=event_type.value,
+                actor_id=helper_id if event_type == TaskEventType.OFFERED else owner_id,
+                helper_id=None if event_type == TaskEventType.CREATED else helper_id,
+                occurred_at=now,
+            )
+            for event_type in event_types
+        )
 
 
 def main() -> None:
@@ -195,13 +213,8 @@ def main() -> None:
             session.add(user)
         session.flush()
 
-        tasks = _build_tasks(owner_id=users[0].id, helper_id=users[1].id)
-        for task in tasks:
-            session.add(task)
-
-        new_user_tasks = _build_tasks(owner_id=users[6].id, helper_id=users[1].id)
-        for task in new_user_tasks:
-            session.add(task)
+        _add_tasks(session, owner_id=users[0].id, helper_id=users[1].id)
+        _add_tasks(session, owner_id=users[6].id, helper_id=users[1].id)
 
         session.commit()
     finally:
