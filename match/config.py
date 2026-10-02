@@ -2,7 +2,8 @@ import enum
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any
+
+import match_config
 
 from dotenv import dotenv_values
 
@@ -29,34 +30,29 @@ class Config:
 
     JWT_SECRET: str
 
-    ACCESS_TOKEN_TTL_MIN: int = 30
-    REFRESH_TOKEN_TTL_DAYS: int = 7
+    ACCESS_TOKEN_TTL_MIN: int
+    REFRESH_TOKEN_TTL_DAYS: int
 
 
-def get_config(auto_convert: bool = True) -> Config:
-    raw_config: dict[str, Any] = {}
-    ENV_VARS = ["ENV"]
-    for env_var in ENV_VARS:
-        try:
-            raw_config[env_var] = os.environ[env_var]
-        except KeyError:
-            logging.warning(f"Environment value {env_var} not found. Skipping.")
+def get_config() -> Config:
+    env_values: dict[str, str | None] = {}
+    if "ENV" in os.environ:
+        env_values["ENV"] = os.environ["ENV"]
+    else:
+        logging.warning("Environment value ENV not found. Skipping.")
+    env_values |= dotenv_values(ENV_DIR)
 
-    raw_config |= dotenv_values(ENV_DIR)  # type: ignore[arg-type]
+    env = Environment[str(env_values["ENV"]).upper()]
+    shared = match_config.get_config("backend", env.value)
 
-    if auto_convert:
-        for key, val in raw_config.items():
-            if val == "true":
-                raw_config[key] = True
-            elif val == "false":
-                raw_config[key] = False
-
-        raw_config["ENV"] = Environment[raw_config["ENV"].upper()]
-        for int_key in ("ACCESS_TOKEN_TTL_MIN", "REFRESH_TOKEN_TTL_DAYS"):
-            if int_key in raw_config:
-                raw_config[int_key] = int(raw_config[int_key])
-
-    expected_fields = {f.name for f in Config.__dataclass_fields__.values()}
-    raw_config = {k: v for k, v in raw_config.items() if k in expected_fields}
-
-    return Config(**raw_config)
+    return Config(
+        ENV=env,
+        FE_HOST=shared.fe_host,
+        BACKEND_HOST=shared.backend_host,
+        DB_PATH=shared.db_path,
+        SENTRY_ENABLED=shared.sentry_enabled,
+        SENTRY_DSN=str(env_values["SENTRY_DSN"]),
+        JWT_SECRET=str(env_values["JWT_SECRET"]),
+        ACCESS_TOKEN_TTL_MIN=shared.access_token_ttl_min,
+        REFRESH_TOKEN_TTL_DAYS=shared.refresh_token_ttl_days,
+    )
