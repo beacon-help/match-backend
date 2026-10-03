@@ -2,7 +2,7 @@ import abc
 from typing import TypedDict
 
 from match.domain.task import Category, ImageId, LocationRadius, Task, TaskStatus
-from match.domain.user import User, UserId
+from match.domain.user import User, UserId, UserType
 
 
 class TaskFilter(TypedDict, total=False):
@@ -33,6 +33,9 @@ class MatchRepository(abc.ABC):
     def user_update(self, user: User) -> User: ...
 
     @abc.abstractmethod
+    def count_users_by_type(self) -> dict[UserType, int]: ...
+
+    @abc.abstractmethod
     def create_task(self, task: Task) -> Task: ...
 
     @abc.abstractmethod
@@ -43,6 +46,9 @@ class MatchRepository(abc.ABC):
 
     @abc.abstractmethod
     def task_update(self, task: Task) -> Task: ...
+
+    @abc.abstractmethod
+    def count_tasks_by_status(self) -> dict[TaskStatus, int]: ...
 
     @abc.abstractmethod
     def images_delete(self, image_ids: list[ImageId]) -> None: ...

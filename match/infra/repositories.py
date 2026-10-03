@@ -1,7 +1,7 @@
 import json
 import math
 import random
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -264,6 +264,9 @@ class InMemoryMatchRepository(MatchRepository):
                 return deepcopy(user)
         raise exceptions.UserNotFound
 
+    def count_users_by_type(self) -> dict[UserType, int]:
+        return dict(Counter(user.user_type for user in self.users.values()))
+
     def get_users_by_ids(self, user_ids: set[UserId]) -> dict[UserId, User]:
         users: dict[UserId, User] = {}
         for user_id in user_ids:
@@ -310,6 +313,9 @@ class InMemoryMatchRepository(MatchRepository):
         self._persist_new_events(task)
         self.tasks[task.id] = task
         return deepcopy(task)
+
+    def count_tasks_by_status(self) -> dict[TaskStatus, int]:
+        return dict(Counter(task.status for task in self.tasks.values()))
 
     def images_delete(self, image_ids: list[ImageId]) -> None:
         for image_id in image_ids:
@@ -576,6 +582,12 @@ class SQLiteRepository(MatchRepository):
         db_objs = self.session.scalars(statement).all()
         return {UserId(obj.id): self._user_to_domain(obj) for obj in db_objs}
 
+    def count_users_by_type(self) -> dict[UserType, int]:
+        statement = select(db_models.User.user_type, sqlalchemy.func.count()).group_by(
+            db_models.User.user_type
+        )
+        return dict(self.session.execute(statement).tuples().all())
+
     def _get_images_for_tasks(self, task_ids: list[int]) -> dict[int, list[ImageId]]:
         statement = select(db_models.Image).where(db_models.Image.task_id.in_(task_ids))
         images_by_task_id: dict[int, list[ImageId]] = defaultdict(list)
@@ -762,6 +774,14 @@ class SQLiteRepository(MatchRepository):
         self._persist_new_events(task.id, task)
         self.session.commit()
         return task
+
+    def count_tasks_by_status(self) -> dict[TaskStatus, int]:
+        view = db_models.tasks_with_status
+        statement = select(view.c.status, sqlalchemy.func.count()).group_by(view.c.status)
+        return {
+            TaskStatus(status): count
+            for status, count in self.session.execute(statement).tuples().all()
+        }
 
     def images_delete(self, image_ids: list[ImageId]) -> None:
         if not image_ids:

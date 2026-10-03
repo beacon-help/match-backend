@@ -133,3 +133,19 @@ class TaskAction(enum.StrEnum):
     CLOSE = "close"
     REPORT_SUCCESS = "report_success"
     REPORT_FAILURE = "report_failure"
+
+
+class TaskStats(BaseModel):
+    total: int
+    successful: int
+    in_progress: int
+
+
+class UserStats(BaseModel):
+    total_helpers: int
+    total_help_seekers: int
+
+
+class Stats(BaseModel):
+    tasks: TaskStats
+    users: UserStats

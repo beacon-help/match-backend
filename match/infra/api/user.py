@@ -1,8 +1,7 @@
 from dataclasses import asdict
 from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, HTTPException, Response
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, Response
 
 from match.app.service import MatchService
 from match.bootstrap import get_service

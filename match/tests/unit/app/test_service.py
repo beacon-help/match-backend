@@ -32,3 +32,19 @@ def test_task_remove_image_keeps_file_when_persisting_fails(service, monkeypatch
         service.task_remove_image(task_id=100, owner_id=100, image_id=image_id)
 
     assert (service.image_repository.storage_dir / image_id).exists()
+
+
+def test_get_stats(service):
+    task_stats, user_stats = service.get_stats()
+
+    assert task_stats == {"total": 6, "successful": 1, "in_progress": 2}
+    assert user_stats == {"total_helpers": 2, "total_help_seekers": 2}
+
+
+def test_get_stats_empty(service):
+    service.repository = InMemoryMatchRepository(test_data=False)
+
+    task_stats, user_stats = service.get_stats()
+
+    assert task_stats == {"total": 0, "successful": 0, "in_progress": 0}
+    assert user_stats == {"total_helpers": 0, "total_help_seekers": 0}

@@ -52,3 +52,15 @@ def test_get_tasks_can_filter_by_null_helper_id():
 
     assert len(tasks) == 1
     assert tasks[0].helper_id is None
+
+
+def test_count_tasks_by_status():
+    repository = InMemoryMatchRepository()
+
+    assert repository.count_tasks_by_status() == {status: 1 for status in TaskStatus}
+
+
+def test_count_users_by_type():
+    repository = InMemoryMatchRepository()
+
+    assert repository.count_users_by_type() == {UserType.VOLUNTEER: 2, UserType.HELP_SEEKER: 2}

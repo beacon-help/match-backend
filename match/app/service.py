@@ -9,7 +9,7 @@ from match.domain.exceptions import (
     UserVerificationCodeInvalid,
 )
 from match.domain.interfaces import ImageRepository, MatchRepository, MessageClient, TaskFilter
-from match.domain.task import Category, ImageId, Location, Task
+from match.domain.task import Category, ImageId, Location, Task, TaskStatus
 from match.domain.user import User, UserId, UserType, create_user_verification_message
 from match.infra.api.security import hash_password, verify_password
 
@@ -303,3 +303,21 @@ class MatchService:
         task.report_failed(owner)
         task = self.repository.task_update(task)
         return task
+
+    def _get_task_stats(self) -> dict[str, int]:
+        counts = self.repository.count_tasks_by_status()
+        return {
+            "total": sum(counts.values()),
+            "successful": counts.get(TaskStatus.SUCCEEDED, 0),
+            "in_progress": counts.get(TaskStatus.PENDING, 0) + counts.get(TaskStatus.APPROVED, 0),
+        }
+
+    def _get_user_stats(self) -> dict[str, int]:
+        counts = self.repository.count_users_by_type()
+        return {
+            "total_helpers": counts.get(UserType.VOLUNTEER, 0),
+            "total_help_seekers": counts.get(UserType.HELP_SEEKER, 0),
+        }
+
+    def get_stats(self) -> tuple[dict[str, int], dict[str, int]]:
+        return self._get_task_stats(), self._get_user_stats()

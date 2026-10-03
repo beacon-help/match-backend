@@ -236,6 +236,22 @@
         "title": "RefreshRequestSchema",
         "type": "object"
       },
+      "Stats": {
+        "properties": {
+          "tasks": {
+            "$ref": "#/components/schemas/TaskStats"
+          },
+          "users": {
+            "$ref": "#/components/schemas/UserStats"
+          }
+        },
+        "required": [
+          "tasks",
+          "users"
+        ],
+        "title": "Stats",
+        "type": "object"
+      },
       "TaskAction": {
         "enum": [
           "join",
@@ -478,6 +494,29 @@
         "title": "TaskSchema",
         "type": "object"
       },
+      "TaskStats": {
+        "properties": {
+          "in_progress": {
+            "title": "In Progress",
+            "type": "integer"
+          },
+          "successful": {
+            "title": "Successful",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "successful",
+          "in_progress"
+        ],
+        "title": "TaskStats",
+        "type": "object"
+      },
       "TaskStatus": {
         "enum": [
           "open",
@@ -567,6 +606,24 @@
           "is_verified"
         ],
         "title": "UserSchema",
+        "type": "object"
+      },
+      "UserStats": {
+        "properties": {
+          "total_help_seekers": {
+            "title": "Total Help Seekers",
+            "type": "integer"
+          },
+          "total_helpers": {
+            "title": "Total Helpers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_helpers",
+          "total_help_seekers"
+        ],
+        "title": "UserStats",
         "type": "object"
       },
       "UserType": {
@@ -737,6 +794,27 @@
         "summary": "Health Check",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/stats/": {
+      "get": {
+        "operationId": "get_stats_stats__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stats"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Stats",
+        "tags": [
+          "stats"
         ]
       }
     },
