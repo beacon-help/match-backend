@@ -540,3 +540,54 @@ def test_remove_task_image_task_not_found(test_client):
     )
 
     assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_deleted_owner_tasks_are_hidden(test_client):
+    test_client.delete("/user/me", headers=build_headers(100))
+    headers = build_headers(101)
+
+    response = test_client.get("/task/100", headers=headers)
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == test_client.get("/task/999999", headers=headers).json()
+    assert test_client.get("/task", headers=headers).json() == []
+    assert test_client.get("/task/public").json() == []
+
+
+def test_get_task_shows_deleted_helper_as_placeholder(test_client):
+    session = Session()
+    statement = """
+        INSERT OR REPLACE INTO tasks (id,title,description,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
+        VALUES (101, 'Help', 'please help me', 'other', 101, 100, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
+        """
+    session.execute(text(statement))
+    insert_events(session, (101, "created", 101, None), (101, "offered", 100, 100))
+    session.commit()
+    test_client.delete("/user/me", headers=build_headers(100))
+
+    response = test_client.get("/task/101", headers=build_headers(101))
+
+    assert response.status_code == HTTPStatus.OK
+    deleted_user = {"id": 100, "first_name": "Deleted user"}
+    task = response.json()
+    assert task["status"] == "pending"
+    assert task["helper"] == deleted_user
+    assert [event["actor"] for event in task["events"]] == [
+        {"id": 101, "first_name": "Adam"},
+        deleted_user,
+    ]
+
+
+def test_deleted_owner_task_image_answers_like_unknown_image(test_client):
+    uploaded = test_client.post(
+        "/task/100/images",
+        files={"images": ("photo.jpg", b"fake image bytes", "image/jpeg")},
+        headers=build_headers(100),
+    ).json()
+    image_id = uploaded["images"][0]["id"]
+    test_client.delete("/user/me", headers=build_headers(100))
+
+    response = test_client.get(f"/task/images/{image_id}")
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == test_client.get("/task/images/does-not-exist").json()

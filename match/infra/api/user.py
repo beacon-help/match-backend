@@ -1,13 +1,13 @@
 from dataclasses import asdict
 from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from match.app.service import MatchService
 from match.bootstrap import get_service
-from match.domain.exceptions import UserVerificationError
+from match.domain.exceptions import UserNotFound, UserVerificationError
 from match.domain.user import User, UserType
-from match.infra.api.auth import verified_user
+from match.infra.api.auth import authenticated_user, verified_user
 from match.infra.api.schemas import (
     HelpseekerCreationRequestSchema,
     UserSchema,
@@ -22,11 +22,24 @@ def get_me(user: User = Depends(verified_user)) -> dict:
     return asdict(user)
 
 
+@router.delete("/me", status_code=HTTPStatus.NO_CONTENT)
+def delete_me(
+    user: User = Depends(authenticated_user), service: MatchService = Depends(get_service)
+) -> None:
+    try:
+        service.delete_user(user.id)
+    except UserNotFound:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
+
+
 @router.get("/{user_id}", response_model=UserSchema)
 def get_user(
     user_id: int, _: User = Depends(verified_user), service: MatchService = Depends(get_service)
 ) -> dict:
-    return asdict(service.get_user_by_id(user_id))
+    try:
+        return asdict(service.get_user_by_id(user_id))
+    except UserNotFound:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
 
 
 @router.post("/signup/helpseeker", response_model=UserSchema, status_code=HTTPStatus.CREATED)

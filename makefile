@@ -1,6 +1,7 @@
 SERVICE = match-backend
 FORMAT_TOOLS_DIR = format-tools
 name =
+before =
 OPENAPI_OUTPUT = ./openapi_specs.json
 
 build:
@@ -63,6 +64,9 @@ show:
 
 reset-db:
 	docker compose run $(SERVICE) rm -f /usr/src/app/data/db/app.db
+
+purge-deleted-users:
+	docker compose run $(SERVICE) uv run python -m match.infra.cli.purge_deleted_users $(if $(before),--before $(before),)
 
 
 gen-specs:

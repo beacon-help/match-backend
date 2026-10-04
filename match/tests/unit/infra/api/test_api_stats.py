@@ -3,6 +3,7 @@ from http import HTTPStatus
 from sqlalchemy import text
 
 from match.db import Session
+from match.tests.conftest import build_headers
 from match.tests.unit.infra.api.test_api_task import insert_events
 
 
@@ -52,3 +53,15 @@ def test_get_stats_counts_tasks_by_status(test_client):
 
     assert response.status_code == HTTPStatus.OK
     assert response.json()["tasks"] == {"total": 6, "successful": 1, "in_progress": 2}
+
+
+def test_get_stats_excludes_deleted_user_and_their_tasks(test_client):
+    test_client.delete("/user/me", headers=build_headers(100))
+
+    response = test_client.get("/stats/")
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {
+        "tasks": {"total": 0, "successful": 0, "in_progress": 0},
+        "users": {"total_helpers": 1, "total_help_seekers": 2},
+    }

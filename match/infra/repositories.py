@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from datetime import timezone as tz
 
 import sqlalchemy
-from sqlalchemy import Select, orm, select
+from sqlalchemy import Select, delete, orm, select, update
 from sqlalchemy.orm.session import Session as SQLAlchemySession
 
 from match.domain import exceptions
@@ -94,9 +94,20 @@ class InMemoryMatchRepository(MatchRepository):
         self.users: dict[int, User] = {}
         self.tasks: dict[int, Task] = {}
         self.images: dict[str, int] = {}
+        self.deleted_task_ids: set[int] = set()
         self._last_event_id = 0
         if test_data:
             self._setup_test_data()
+
+    def _active_users(self) -> dict[int, User]:
+        return {user_id: user for user_id, user in self.users.items() if user.deleted_at is None}
+
+    def _active_tasks(self) -> dict[int, Task]:
+        return {
+            task_id: task
+            for task_id, task in self.tasks.items()
+            if task_id not in self.deleted_task_ids
+        }
 
     def _persist_new_images(self, task_id: int, task: Task) -> None:
         for image_id in task.images:
@@ -243,38 +254,62 @@ class InMemoryMatchRepository(MatchRepository):
         return deepcopy(user)
 
     def user_update(self, user: User) -> User:
+        self.get_user_by_id(user.id)
         self.users[user.id] = user
         return deepcopy(self.users[user.id])
 
     def get_user_by_id(self, user_id: int) -> User:
         try:
-            return deepcopy(self.users[user_id])
+            return deepcopy(self._active_users()[user_id])
         except KeyError:
             raise exceptions.UserNotFound
 
     def get_user_by_email(self, email: str) -> User:
-        for user in self.users.values():
+        for user in self._active_users().values():
             if user.email == email:
                 return deepcopy(user)
         raise exceptions.UserNotFound
 
     def get_user_by_verification_code(self, verification_code: str) -> User:
-        for user in self.users.values():
+        for user in self._active_users().values():
             if user.verification_code == verification_code:
                 return deepcopy(user)
         raise exceptions.UserNotFound
 
     def count_users_by_type(self) -> dict[UserType, int]:
-        return dict(Counter(user.user_type for user in self.users.values()))
+        return dict(Counter(user.user_type for user in self._active_users().values()))
 
     def get_users_by_ids(self, user_ids: set[UserId]) -> dict[UserId, User]:
-        users: dict[UserId, User] = {}
+        users = self._active_users()
+        return {user_id: deepcopy(users[user_id]) for user_id in user_ids if user_id in users}
+
+    def user_delete(self, user: User) -> None:
+        self.get_user_by_id(user.id)
+        self.users[user.id] = deepcopy(user)
+        self.deleted_task_ids.update(
+            task_id for task_id, task in self.tasks.items() if task.owner_id == user.id
+        )
+
+    def get_user_ids_deleted_before(self, deleted_before: datetime) -> set[UserId]:
+        return {
+            UserId(user_id)
+            for user_id, user in self.users.items()
+            if user.deleted_at is not None and user.deleted_at < deleted_before
+        }
+
+    def users_purge(self, user_ids: set[UserId]) -> list[ImageId]:
+        task_ids = {task_id for task_id, task in self.tasks.items() if task.owner_id in user_ids}
+        image_ids = [
+            ImageId(image_id) for image_id, task_id in self.images.items() if task_id in task_ids
+        ]
+        for image_id in image_ids:
+            del self.images[image_id]
+        for task_id in task_ids:
+            del self.tasks[task_id]
+        self.deleted_task_ids -= task_ids
         for user_id in user_ids:
-            try:
-                users[user_id] = deepcopy(self.users[user_id])
-            except KeyError:
-                raise exceptions.UserNotFound
-        return users
+            del self.users[user_id]
+        return image_ids
 
     def create_task(self, task: Task) -> Task:
         task_id = 1
@@ -288,13 +323,13 @@ class InMemoryMatchRepository(MatchRepository):
 
     def get_task_by_id(self, task_id: int) -> Task:
         try:
-            return deepcopy(self.tasks[task_id])
+            return deepcopy(self._active_tasks()[task_id])
         except KeyError:
             raise exceptions.TaskNotFound
 
     def get_tasks(self, filters: TaskFilter | None = None) -> list[Task]:
         filters = filters or {}
-        tasks = list(deepcopy(t) for t in self.tasks.values())
+        tasks = list(deepcopy(t) for t in self._active_tasks().values())
         if "status" in filters:
             tasks = [task for task in tasks if task.status == filters["status"]]
         if "category" in filters:
@@ -315,7 +350,10 @@ class InMemoryMatchRepository(MatchRepository):
         return deepcopy(task)
 
     def count_tasks_by_status(self) -> dict[TaskStatus, int]:
-        return dict(Counter(task.status for task in self.tasks.values()))
+        return dict(Counter(task.status for task in self._active_tasks().values()))
+
+    def image_exists(self, image_id: ImageId) -> bool:
+        return self.images.get(image_id) in self._active_tasks()
 
     def images_delete(self, image_ids: list[ImageId]) -> None:
         for image_id in image_ids:
@@ -491,6 +529,10 @@ class SQLiteRepository(MatchRepository):
         self._test_data_seeded = True
 
     @staticmethod
+    def _select_users() -> Select[tuple[db_models.User]]:
+        return select(db_models.User).where(db_models.User.deleted_at.is_(None))
+
+    @staticmethod
     def _user_to_domain(obj: db_models.User) -> User:
         return User(
             id=UserId(obj.id),
@@ -502,10 +544,11 @@ class SQLiteRepository(MatchRepository):
             is_verified=obj.is_verified,
             verification_code=obj.verification_code,
             password_hash=obj.password_hash,
+            deleted_at=obj.deleted_at,
         )
 
     def _get_user_by_id(self, user_id: int) -> db_models.User:
-        statement = select(db_models.User).filter_by(id=user_id)
+        statement = self._select_users().filter_by(id=user_id)
         try:
             return self.session.execute(statement).one()[0]
         except sqlalchemy.orm.exc.NoResultFound:
@@ -515,7 +558,7 @@ class SQLiteRepository(MatchRepository):
         self._ensure_test_data()
         user = User(id=UserId(0), **user_data)
         existing_user = self.session.scalars(
-            select(db_models.User).filter_by(email=user.email)
+            self._select_users().filter_by(email=user.email)
         ).first()
         if existing_user is not None:
             return self._user_to_domain(existing_user)
@@ -558,7 +601,7 @@ class SQLiteRepository(MatchRepository):
 
     def get_user_by_email(self, email: str) -> User:
         self._ensure_test_data()
-        statement = select(db_models.User).filter_by(email=email)
+        statement = self._select_users().filter_by(email=email)
         try:
             db_obj = self.session.execute(statement).one()[0]
         except sqlalchemy.orm.exc.NoResultFound:
@@ -567,7 +610,7 @@ class SQLiteRepository(MatchRepository):
 
     def get_user_by_verification_code(self, verification_code: str) -> User:
         self._ensure_test_data()
-        statement = select(db_models.User).filter_by(verification_code=verification_code)
+        statement = self._select_users().filter_by(verification_code=verification_code)
         try:
             db_obj = self.session.execute(statement).one()[0]
         except sqlalchemy.orm.exc.NoResultFound:
@@ -578,15 +621,46 @@ class SQLiteRepository(MatchRepository):
         self._ensure_test_data()
         if not user_ids:
             return {}
-        statement = select(db_models.User).where(db_models.User.id.in_(user_ids))
+        statement = self._select_users().where(db_models.User.id.in_(user_ids))
         db_objs = self.session.scalars(statement).all()
         return {UserId(obj.id): self._user_to_domain(obj) for obj in db_objs}
 
     def count_users_by_type(self) -> dict[UserType, int]:
-        statement = select(db_models.User.user_type, sqlalchemy.func.count()).group_by(
-            db_models.User.user_type
+        statement = (
+            select(db_models.User.user_type, sqlalchemy.func.count())
+            .where(db_models.User.deleted_at.is_(None))
+            .group_by(db_models.User.user_type)
         )
         return dict(self.session.execute(statement).tuples().all())
+
+    def user_delete(self, user: User) -> None:
+        self._get_user_by_id(user.id).deleted_at = user.deleted_at
+        self.session.execute(
+            update(db_models.Task)
+            .where(db_models.Task.owner_id == user.id, db_models.Task.deleted_at.is_(None))
+            .values(deleted_at=user.deleted_at)
+        )
+        self.session.commit()
+
+    def get_user_ids_deleted_before(self, deleted_before: datetime) -> set[UserId]:
+        statement = select(db_models.User.id).where(db_models.User.deleted_at < deleted_before)
+        return {UserId(user_id) for user_id in self.session.scalars(statement)}
+
+    def users_purge(self, user_ids: set[UserId]) -> list[ImageId]:
+        task_ids = select(db_models.Task.id).where(db_models.Task.owner_id.in_(user_ids))
+        image_ids = list(
+            self.session.scalars(
+                select(db_models.Image.id).where(db_models.Image.task_id.in_(task_ids))
+            )
+        )
+        self.session.execute(delete(db_models.Image).where(db_models.Image.task_id.in_(task_ids)))
+        self.session.execute(
+            delete(db_models.TaskEvent).where(db_models.TaskEvent.task_id.in_(task_ids))
+        )
+        self.session.execute(delete(db_models.Task).where(db_models.Task.owner_id.in_(user_ids)))
+        self.session.execute(delete(db_models.User).where(db_models.User.id.in_(user_ids)))
+        self.session.commit()
+        return [ImageId(image_id) for image_id in image_ids]
 
     def _get_images_for_tasks(self, task_ids: list[int]) -> dict[int, list[ImageId]]:
         statement = select(db_models.Image).where(db_models.Image.task_id.in_(task_ids))
@@ -693,7 +767,9 @@ class SQLiteRepository(MatchRepository):
         )
 
     def _get_task_by_id(self, task_id: int) -> db_models.Task:
-        statement = select(db_models.Task).filter_by(id=task_id)
+        statement = select(db_models.Task).where(
+            db_models.Task.id == task_id, db_models.Task.deleted_at.is_(None)
+        )
         try:
             return self.session.execute(statement).one()[0]
         except sqlalchemy.orm.exc.NoResultFound:
@@ -728,7 +804,11 @@ class SQLiteRepository(MatchRepository):
     @staticmethod
     def _select_tasks_with_status() -> Select[tuple[db_models.Task, str]]:
         view = db_models.tasks_with_status
-        return select(db_models.Task, view.c.status).join(view, view.c.id == db_models.Task.id)
+        return (
+            select(db_models.Task, view.c.status)
+            .join(view, view.c.id == db_models.Task.id)
+            .where(db_models.Task.deleted_at.is_(None))
+        )
 
     def get_task_by_id(self, task_id: int) -> Task:
         statement = self._select_tasks_with_status().where(db_models.Task.id == task_id)
@@ -777,11 +857,24 @@ class SQLiteRepository(MatchRepository):
 
     def count_tasks_by_status(self) -> dict[TaskStatus, int]:
         view = db_models.tasks_with_status
-        statement = select(view.c.status, sqlalchemy.func.count()).group_by(view.c.status)
+        statement = (
+            select(view.c.status, sqlalchemy.func.count())
+            .join(db_models.Task, db_models.Task.id == view.c.id)
+            .where(db_models.Task.deleted_at.is_(None))
+            .group_by(view.c.status)
+        )
         return {
             TaskStatus(status): count
             for status, count in self.session.execute(statement).tuples().all()
         }
+
+    def image_exists(self, image_id: ImageId) -> bool:
+        statement = (
+            select(db_models.Image.id)
+            .join(db_models.Task, db_models.Task.id == db_models.Image.task_id)
+            .where(db_models.Image.id == image_id, db_models.Task.deleted_at.is_(None))
+        )
+        return self.session.scalar(statement) is not None
 
     def images_delete(self, image_ids: list[ImageId]) -> None:
         if not image_ids:

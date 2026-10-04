@@ -1,4 +1,5 @@
 import abc
+from datetime import datetime
 from typing import TypedDict
 
 from match.domain.task import Category, ImageId, LocationRadius, Task, TaskStatus
@@ -36,6 +37,15 @@ class MatchRepository(abc.ABC):
     def count_users_by_type(self) -> dict[UserType, int]: ...
 
     @abc.abstractmethod
+    def user_delete(self, user: User) -> None: ...
+
+    @abc.abstractmethod
+    def get_user_ids_deleted_before(self, deleted_before: datetime) -> set[UserId]: ...
+
+    @abc.abstractmethod
+    def users_purge(self, user_ids: set[UserId]) -> list[ImageId]: ...
+
+    @abc.abstractmethod
     def create_task(self, task: Task) -> Task: ...
 
     @abc.abstractmethod
@@ -49,6 +59,9 @@ class MatchRepository(abc.ABC):
 
     @abc.abstractmethod
     def count_tasks_by_status(self) -> dict[TaskStatus, int]: ...
+
+    @abc.abstractmethod
+    def image_exists(self, image_id: ImageId) -> bool: ...
 
     @abc.abstractmethod
     def images_delete(self, image_ids: list[ImageId]) -> None: ...

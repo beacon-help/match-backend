@@ -1,8 +1,10 @@
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from typing import Any, Iterable
 
 from match.domain.exceptions import (
     AuthenticationFailed,
+    ImageNotFound,
     InvalidTaskAction,
     MatchServiceException,
     UserNotFound,
@@ -14,6 +16,7 @@ from match.domain.user import User, UserId, UserType, create_user_verification_m
 from match.infra.api.security import hash_password, verify_password
 
 VERIFICATION_URL = "localhost:8000/user/verify/"
+DELETED_USER_FIRST_NAME = "Deleted user"
 
 
 @dataclass
@@ -90,6 +93,17 @@ class MatchService:
     def get_user_by_id(self, user_id: int) -> User:
         return self.repository.get_user_by_id(user_id)
 
+    def delete_user(self, user_id: int) -> None:
+        user = self.get_user_by_id(user_id)
+        user.delete()
+        self.repository.user_delete(user)
+
+    def purge_deleted_users(self, deleted_before: datetime) -> int:
+        user_ids = self.repository.get_user_ids_deleted_before(deleted_before)
+        for image_id in self.repository.users_purge(user_ids):
+            self.image_repository.delete(image_id)
+        return len(user_ids)
+
     def create_task(
         self,
         user_id: int,
@@ -129,18 +143,21 @@ class MatchService:
         return self.repository.get_tasks(filters=filters)
 
     @staticmethod
-    def _user_to_summary(user: User) -> dict[str, Any]:
-        return {"id": user.id, "first_name": user.first_name}
+    def _user_to_summary(
+        user_id: UserId | None, users_by_id: dict[UserId, User]
+    ) -> dict[str, Any] | None:
+        if user_id is None:
+            return None
+        user = users_by_id.get(user_id)
+        first_name = user.first_name if user is not None else DELETED_USER_FIRST_NAME
+        return {"id": user_id, "first_name": first_name}
 
     def _task_to_api_response(self, task: Task, users_by_id: dict[UserId, User]) -> dict[str, Any]:
         task_dict = asdict(task)
-        owner = users_by_id[task.owner_id]
-        helper = users_by_id[task.helper_id] if task.helper_id is not None else None
-
         task_dict.pop("owner_id")
         task_dict.pop("helper_id")
-        task_dict["owner"] = self._user_to_summary(owner)
-        task_dict["helper"] = self._user_to_summary(helper) if helper else None
+        task_dict["owner"] = self._user_to_summary(task.owner_id, users_by_id)
+        task_dict["helper"] = self._user_to_summary(task.helper_id, users_by_id)
 
         task_dict["images"] = [
             {"id": image_id, "path": self.image_repository.path(image_id)}
@@ -151,12 +168,8 @@ class MatchService:
             {
                 "id": event.id,
                 "type": event.type,
-                "actor": self._user_to_summary(users_by_id[event.actor_id]),
-                "helper": (
-                    self._user_to_summary(users_by_id[event.helper_id])
-                    if event.helper_id is not None
-                    else None
-                ),
+                "actor": self._user_to_summary(event.actor_id, users_by_id),
+                "helper": self._user_to_summary(event.helper_id, users_by_id),
                 "message": event.message,
                 "occurred_at": event.occurred_at,
             }
@@ -263,6 +276,11 @@ class MatchService:
         )
         task = self.repository.task_update(task)
         return task
+
+    def get_task_image(self, image_id: str) -> bytes:
+        if not self.repository.image_exists(ImageId(image_id)):
+            raise ImageNotFound
+        return self.image_repository.read([image_id])[image_id]
 
     def task_add_images(self, task_id: int, owner_id: int, images: list[bytes]) -> Task:
         task = self.get_task_by_id(task_id)

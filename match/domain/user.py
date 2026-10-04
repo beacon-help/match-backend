@@ -1,9 +1,15 @@
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
+from datetime import timezone as tz
 from enum import Enum, StrEnum
 from typing import NewType
 
-from match.domain.exceptions import UserNotPendingVerification, UserVerificationCodeInvalid
+from match.domain.exceptions import (
+    UserAlreadyDeleted,
+    UserNotPendingVerification,
+    UserVerificationCodeInvalid,
+)
 
 
 def generate_uuid_as_str() -> str:
@@ -30,6 +36,7 @@ class User:
     is_verified: bool = field(default=False)
     verification_code: str = field(default_factory=generate_uuid_as_str)
     password_hash: str | None = field(default=None)
+    deleted_at: datetime | None = field(default=None)
 
     def __repr__(self) -> str:
         return f"<User {self.id}>"
@@ -45,6 +52,11 @@ class User:
             raise UserVerificationCodeInvalid(f"User {self} incorrect verification code.")
         self.is_verified = True
         return self
+
+    def delete(self) -> None:
+        if self.deleted_at is not None:
+            raise UserAlreadyDeleted(f"User {self} is already deleted.")
+        self.deleted_at = datetime.now(tz.utc)
 
 
 def create_user_verification_message(user: User, verification_url: str) -> str:

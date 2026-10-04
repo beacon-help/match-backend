@@ -7,6 +7,7 @@ from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import (
     DomainException,
+    ImageNotFound,
     InvalidTaskAction,
     MatchServiceException,
     PermissionDenied,
@@ -100,8 +101,8 @@ def create_task(
 @router.get("/images/{image_id}")
 def get_task_image(image_id: str, service: MatchService = Depends(get_service)) -> Response:
     try:
-        content = service.image_repository.read([image_id])[image_id]
-    except FileNotFoundError:
+        content = service.get_task_image(image_id)
+    except (ImageNotFound, FileNotFoundError):
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
     return Response(content=content, media_type="application/octet-stream")
 
@@ -252,4 +253,7 @@ def get_my_tasks(
 def get_task(
     task_id: int, _: User = Depends(verified_user), service: MatchService = Depends(get_service)
 ) -> dict:
-    return service.get_task_response(task_id)
+    try:
+        return service.get_task_response(task_id)
+    except TaskNotFound:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND)

@@ -64,12 +64,14 @@ def login(
 
 
 @router.post("/refresh", response_model=TokenSchema)
-def refresh(params: RefreshRequestSchema) -> TokenSchema:
+def refresh(
+    params: RefreshRequestSchema, service: MatchService = Depends(get_service)
+) -> TokenSchema:
     try:
-        user_id = decode_token(params.refresh_token, REFRESH_TOKEN_TYPE)
-    except TokenError:
+        user = service.get_user_by_id(decode_token(params.refresh_token, REFRESH_TOKEN_TYPE))
+    except (TokenError, UserNotFound):
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
     return TokenSchema(
-        access_token=create_access_token(user_id),
-        refresh_token=create_refresh_token(user_id),
+        access_token=create_access_token(user.id),
+        refresh_token=create_refresh_token(user.id),
     )

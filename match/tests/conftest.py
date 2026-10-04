@@ -29,6 +29,12 @@ def image_storage_dir(tmp_path):
     bootstrap.match_service.image_repository = original
 
 
+@pytest.fixture(autouse=True)
+def expire_cached_db_rows():
+    # The app reuses one long-lived session while tests reseed rows through other sessions.
+    bootstrap.repository.session.expire_all()
+
+
 @pytest.fixture(scope="session")
 def config():
     return get_config()

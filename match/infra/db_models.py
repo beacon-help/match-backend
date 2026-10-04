@@ -1,6 +1,16 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, Column, ForeignKey, Integer, MetaData, String, Table
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    ForeignKey,
+    Index,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from match.db import Base
@@ -9,17 +19,27 @@ from match.domain.user import UserType
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        Index(
+            "ix_users_email_active",
+            "email",
+            unique=True,
+            sqlite_where=text("deleted_at IS NULL"),
+        ),
+        {"sqlite_autoincrement": True},
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True, autoincrement="auto")
     user_type: Mapped[UserType] = mapped_column()
     first_name: Mapped[str] = mapped_column()
     last_name: Mapped[str] = mapped_column()
-    email: Mapped[str] = mapped_column(unique=True)
+    email: Mapped[str] = mapped_column()
     properties: Mapped[str] = mapped_column()
     is_verified: Mapped[bool] = mapped_column(default=False)
     verification_code: Mapped[str] = mapped_column()
     password_hash: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column()
+    deleted_at: Mapped[datetime | None] = mapped_column(default=None)
 
 
 class Task(Base):
@@ -45,6 +65,7 @@ class Task(Base):
     location_lat: Mapped[float | None] = mapped_column()
     location_lon: Mapped[float | None] = mapped_column()
     location_address: Mapped[str | None] = mapped_column()
+    deleted_at: Mapped[datetime | None] = mapped_column(default=None)
 
 
 class Image(Base):

@@ -30,6 +30,7 @@ make migration name=<description>   # Autogenerate Alembic migration
 make upgrade                        # Apply all pending migrations
 make downgrade                      # Roll back one migration
 make reset-db                       # Delete the SQLite DB file
+make purge-deleted-users            # Hard-delete accounts soft-deleted 30+ days ago (before=<ISO-8601> overrides)
 ```
 
 Always use `make migration` command instead of creating migration files manually.

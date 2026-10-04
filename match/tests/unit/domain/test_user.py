@@ -1,3 +1,5 @@
+from datetime import datetime
+from datetime import timezone as tz
 from uuid import uuid4
 
 import pytest
@@ -63,3 +65,20 @@ def test_user_verification_happy_path():
     user = build_user(1, is_verified=False, verification_code=uuid)
     user.verify(uuid)
     assert user.is_verified
+
+
+def test_delete_marks_user_as_deleted():
+    user = build_user(1)
+    before = datetime.now(tz.utc)
+
+    user.delete()
+
+    assert before <= user.deleted_at <= datetime.now(tz.utc)
+
+
+def test_delete_already_deleted_user_raises():
+    user = build_user(1)
+    user.delete()
+
+    with pytest.raises(domain_exceptions.UserAlreadyDeleted):
+        user.delete()

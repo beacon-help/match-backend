@@ -4,6 +4,8 @@ from uuid import uuid4
 
 import pytest
 
+from match import bootstrap
+from match.domain.exceptions import UserNotFound
 from match.tests.conftest import build_headers
 from match.tests.unit.infra.api.conftest import SEED_PASSWORD, VALID_VERIF_CODE
 
@@ -176,3 +178,60 @@ def test_verify_user_happy_path(test_client):
 def test_verify_user_failed(verification_code, test_client):
     response = test_client.put(f"/user/verify/{verification_code}")
     assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_delete_me(test_client):
+    headers = build_headers(100)
+
+    response = test_client.delete("/user/me", headers=headers)
+
+    assert response.status_code == HTTPStatus.NO_CONTENT
+    assert response.content == b""
+    assert test_client.get("/user/me", headers=headers).status_code == HTTPStatus.UNAUTHORIZED
+
+
+@pytest.fixture
+def deleted_user(test_client):
+    test_client.delete("/user/me", headers=build_headers(100))
+
+
+def test_deleted_user_cannot_log_in(test_client, deleted_user):
+    response = test_client.post(
+        "/user/login",
+        data={"username": "john@johnson.com", "password": SEED_PASSWORD},
+    )
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_deleted_user_cannot_refresh_token(test_client):
+    login_response = test_client.post(
+        "/user/login",
+        data={"username": "john@johnson.com", "password": SEED_PASSWORD},
+    )
+    test_client.delete("/user/me", headers=build_headers(100))
+
+    response = test_client.post(
+        "/user/refresh", json={"refresh_token": login_response.json()["refresh_token"]}
+    )
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_get_deleted_user_answers_like_unknown_user(test_client, deleted_user):
+    response = test_client.get("/user/100", headers=build_headers(101))
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == test_client.get("/user/9999", headers=build_headers(101)).json()
+
+
+def test_delete_me_answers_like_unknown_user_when_already_gone(test_client, monkeypatch):
+    def raise_error(user_id):
+        raise UserNotFound
+
+    monkeypatch.setattr(bootstrap.match_service, "delete_user", raise_error)
+
+    response = test_client.delete("/user/me", headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert response.json() == test_client.delete("/user/me", headers=build_headers(9999)).json()
