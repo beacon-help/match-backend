@@ -95,7 +95,7 @@ def test_task_lifecycle_records_events():
     owner = build_user(1)
     task = build_task(owner)
 
-    task.join(2, "I can help")
+    task.join(build_user(2), "I can help")
     task.approve_helper(owner, 2)
     task.report_succeeded(owner)
 
@@ -111,7 +111,7 @@ def test_task_lifecycle_records_events():
 def test_reject_records_rejected_helper():
     owner = build_user(1)
     task = build_task(owner)
-    task.join(2, "I can help")
+    task.join(build_user(2), "I can help")
 
     task.reject_helper(owner, 2)
 
@@ -122,7 +122,7 @@ def test_reject_records_rejected_helper():
 def test_reject_approved_helper_raises():
     owner = build_user(1)
     task = build_task(owner)
-    task.join(2, "I can help")
+    task.join(build_user(2), "I can help")
     task.approve_helper(owner, 2)
 
     with pytest.raises(InvalidTaskAction):
@@ -135,7 +135,7 @@ def test_reject_approved_helper_raises():
 def test_report_failed_records_event():
     owner = build_user(1)
     task = build_task(owner)
-    task.join(2, "I can help")
+    task.join(build_user(2), "I can help")
     task.approve_helper(owner, 2)
 
     task.report_failed(owner)
@@ -202,7 +202,7 @@ def test_helper_withdraws_and_task_reopens(approved):
     owner = build_user(1)
     helper = build_user(2)
     task = build_task(owner)
-    task.join(helper.id, "I can help")
+    task.join(helper, "I can help")
     if approved:
         task.approve_helper(owner, helper.id)
 
@@ -216,7 +216,7 @@ def test_helper_withdraws_and_task_reopens(approved):
 def test_only_current_helper_can_withdraw():
     owner = build_user(1)
     task = build_task(owner)
-    task.join(2, "I can help")
+    task.join(build_user(2), "I can help")
 
     with pytest.raises(InvalidTaskAction):
         task.withdraw(build_user(3))

@@ -190,21 +190,21 @@ class Task:
         if self.status in FINISHED_STATUSES:
             raise InvalidTaskAction("Finished tasks cannot be changed.")
 
-    def join(self, helper_id: UserId, message: str) -> None:
+    def join(self, helper: User, message: str) -> None:
         if self.status != TaskStatus.OPEN:
             raise InvalidTaskAction(f"Cannot join this Task with status {self.status}")
-        if self.owner_id == helper_id:
+        if self.owner_id == helper.id:
             raise InvalidTaskAction("Owner cannot join its own Task.")
         offer = HelperOffer(
-            user_id=helper_id,
+            user_id=helper.id,
             offered_at=datetime.now(tz.utc),
             message=message,
         )
         self.helper_offers.append(offer)
-        self.helper_id = helper_id
+        self.helper_id = helper.id
         self.status = TaskStatus.PENDING
         self._record_event(
-            TaskEventType.OFFERED, actor_id=helper_id, helper_id=helper_id, message=message
+            TaskEventType.OFFERED, actor_id=helper.id, helper_id=helper.id, message=message
         )
         self._post_task_update()
 

@@ -151,7 +151,7 @@ class MatchService:
     def task_join(self, task_id: int, user_id: int, message: str) -> Task:
         task = self.get_task_by_id(task_id)
         user = self.get_user_by_id(user_id)
-        task.join(user.id, message)
+        task.join(user, message)
         task = self.repository.task_update(task)
         return task
 
