@@ -1,6 +1,6 @@
 import pytest
 
-from match.domain.exceptions import DomainException, InvalidLocation, InvalidTaskAction
+from match.domain.exceptions import DomainException, InvalidLocation, InvalidTaskAction, NotAnOwner
 from match.domain.task import Category, LocationRadius, Task, TaskEventType, TaskStatus
 from match.domain.user import User, UserType
 
@@ -231,3 +231,18 @@ def test_withdraw_from_open_task_raises():
 
     with pytest.raises(InvalidTaskAction):
         task.withdraw(build_user(2))
+
+
+@pytest.mark.parametrize(
+    "action",
+    (
+        pytest.param(lambda task, user: task.close(user), id="close"),
+        pytest.param(lambda task, user: task.edit(user, title="new"), id="edit"),
+        pytest.param(lambda task, user: task.report_succeeded(user), id="report-succeeded"),
+    ),
+)
+def test_owner_only_actions_raise_not_an_owner(action):
+    task = build_task(build_user(1))
+
+    with pytest.raises(NotAnOwner):
+        action(task, build_user(2))

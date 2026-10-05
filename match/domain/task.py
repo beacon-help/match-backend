@@ -175,10 +175,7 @@ class Task:
             raise NotAnOwner("User is not an owner.")
 
     def validate_editable_by(self, user: User) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
+        self._validate_owner(user)
         if self.status in FINISHED_STATUSES:
             raise InvalidTaskAction("Finished tasks cannot be changed.")
 
@@ -201,11 +198,7 @@ class Task:
         self._post_task_update()
 
     def approve_helper(self, user: User, helper_id: UserId) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self._validate_owner(user)
         if self.status != TaskStatus.PENDING or not self.helper_id:
             raise InvalidTaskAction("Cannot approve helper.")
         if self.helper_id != helper_id:
@@ -215,11 +208,7 @@ class Task:
         self._post_task_update()
 
     def reject_helper(self, user: User, helper_id: UserId) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self._validate_owner(user)
         if self.status != TaskStatus.PENDING:
             raise InvalidTaskAction("Cannot reject helper.")
         if self.helper_id != helper_id:
@@ -240,11 +229,7 @@ class Task:
         self._post_task_update()
 
     def report_succeeded(self, user: User) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self._validate_owner(user)
         if self.status != TaskStatus.APPROVED:
             raise InvalidTaskAction("Cannot report this task.")
         self.status = TaskStatus.SUCCEEDED
@@ -252,11 +237,7 @@ class Task:
         self._post_task_update()
 
     def report_failed(self, user: User) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self._validate_owner(user)
         if self.status != TaskStatus.APPROVED:
             raise InvalidTaskAction("Cannot report this task.")
         self.status = TaskStatus.FAILED
@@ -296,11 +277,7 @@ class Task:
         self._post_task_update()
 
     def close(self, user: User) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self._validate_owner(user)
         if self.status == TaskStatus.CANCELLED:
             raise InvalidTaskAction("Task already closed.")
         if self.status in (TaskStatus.SUCCEEDED, TaskStatus.FAILED):
