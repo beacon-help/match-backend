@@ -8,6 +8,7 @@ from match.bootstrap import get_service
 from match.domain.exceptions import (
     DomainException,
     ImageNotFound,
+    InvalidLocation,
     InvalidTaskAction,
     MatchServiceException,
     PermissionDenied,
@@ -47,19 +48,12 @@ def _task_filters_from_request(request: Request) -> TaskFilter:
         if location_filter_keys & query_params.keys():
             if not location_filter_keys <= query_params.keys():
                 raise ValueError
-            location_radius = LocationRadius(
+            filters["location_radius"] = LocationRadius(
                 lat=float(query_params["lat"]),
                 lon=float(query_params["lon"]),
                 radius_km=float(query_params["radius_km"]),
             )
-            if not -90 <= location_radius.lat <= 90:
-                raise ValueError
-            if not -180 <= location_radius.lon <= 180:
-                raise ValueError
-            if location_radius.radius_km <= 0:
-                raise ValueError
-            filters["location_radius"] = location_radius
-    except ValueError as exc:
+    except (ValueError, InvalidLocation) as exc:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="Invalid task filter."
         ) from exc

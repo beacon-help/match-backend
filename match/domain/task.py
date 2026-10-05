@@ -77,6 +77,8 @@ def _validate_coordinates(lat: float, lon: float, radius_km: float | None = None
         raise InvalidLocation("Invalid latitude.")
     if not -180 <= lon <= 180:
         raise InvalidLocation("Invalid longitude.")
+    if radius_km is not None and radius_km <= 0:
+        raise InvalidLocation("Invalid radius.")
 
 
 @dataclass
@@ -96,7 +98,7 @@ class LocationRadius:
     radius_km: float
 
     def __post_init__(self) -> None:
-        _validate_coordinates(self.lat, self.lon)
+        _validate_coordinates(self.lat, self.lon, self.radius_km)
 
 
 @dataclass

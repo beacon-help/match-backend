@@ -1,7 +1,7 @@
 import pytest
 
-from match.domain.exceptions import DomainException, InvalidTaskAction
-from match.domain.task import Category, Task, TaskEventType
+from match.domain.exceptions import DomainException, InvalidLocation, InvalidTaskAction
+from match.domain.task import Category, LocationRadius, Task, TaskEventType
 from match.domain.user import User, UserType
 
 
@@ -147,3 +147,16 @@ def test_failed_action_records_no_event():
         task.approve_helper(owner, 2)
 
     assert event_summary(task) == [(TaskEventType.CREATED, 1, None)]
+
+
+@pytest.mark.parametrize(
+    "lat,lon,radius_km",
+    (
+        pytest.param(91, 0, 1, id="latitude"),
+        pytest.param(0, 181, 1, id="longitude"),
+        pytest.param(0, 0, 0, id="radius"),
+    ),
+)
+def test_location_radius_rejects_invalid_values(lat, lon, radius_km):
+    with pytest.raises(InvalidLocation):
+        LocationRadius(lat=lat, lon=lon, radius_km=radius_km)

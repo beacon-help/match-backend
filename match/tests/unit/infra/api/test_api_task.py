@@ -152,9 +152,16 @@ def test_list_tasks_filtered_by_radius(test_client):
 
 
 @pytest.mark.parametrize(
-    "params", ({"lat": 39.4738, "radius_km": 1}, {"lat": 39.4738, "lot": 39.4738})
+    "params",
+    (
+        pytest.param({"lat": 39.4738, "radius_km": 1}, id="missing-lon"),
+        pytest.param({"lat": 39.4738, "lot": 39.4738}, id="misspelled-lon"),
+        pytest.param({"lat": 200, "lon": 0.3756, "radius_km": 1}, id="latitude-out-of-range"),
+        pytest.param({"lat": 39.4738, "lon": 200, "radius_km": 1}, id="longitude-out-of-range"),
+        pytest.param({"lat": 39.4738, "lon": 0.3756, "radius_km": 0}, id="radius-not-positive"),
+    ),
 )
-def test_list_tasks_rejects_partial_radius_filter(test_client, params):
+def test_list_tasks_rejects_invalid_radius_filter(test_client, params):
     response = test_client.get("/task", params=params, headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
