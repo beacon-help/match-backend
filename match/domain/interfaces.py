@@ -67,6 +67,11 @@ class MatchRepository(abc.ABC):
     def images_delete(self, image_ids: list[ImageId]) -> None: ...
 
 
+class UnitOfWork(abc.ABC):
+    @abc.abstractmethod
+    def commit(self) -> None: ...
+
+
 class PasswordHasher(abc.ABC):
     @abc.abstractmethod
     def hash(self, password: str) -> str: ...

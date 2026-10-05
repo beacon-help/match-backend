@@ -10,6 +10,7 @@ from match.domain.interfaces import (
     MessageClient,
     PasswordHasher,
     TaskFilter,
+    UnitOfWork,
 )
 from match.domain.task import Category, ImageId, Location, Task, TaskStatus
 from match.domain.user import User, UserId, UserType, create_user_verification_message
@@ -23,6 +24,7 @@ class MatchService:
     repository: MatchRepository
     image_repository: ImageRepository
     password_hasher: PasswordHasher
+    unit_of_work: UnitOfWork
     _fe_host: str
 
     def _construct_verification_url(self, code: str) -> str:
@@ -47,6 +49,7 @@ class MatchService:
             "password_hash": self.password_hasher.hash(password),
         }
         user = self.repository.create_user(user_data=user_data)
+        self.unit_of_work.commit()
         return user
 
     def create_user(
@@ -90,6 +93,7 @@ class MatchService:
             raise UserVerificationCodeInvalid
         user = user.verify(verification_code)
         self.repository.user_update(user)
+        self.unit_of_work.commit()
 
     def get_user_by_id(self, user_id: int) -> User:
         return self.repository.get_user_by_id(user_id)
@@ -98,10 +102,13 @@ class MatchService:
         user = self.get_user_by_id(user_id)
         user.delete()
         self.repository.user_delete(user)
+        self.unit_of_work.commit()
 
     def purge_deleted_users(self, deleted_before: datetime) -> int:
         user_ids = self.repository.get_user_ids_deleted_before(deleted_before)
-        for image_id in self.repository.users_purge(user_ids):
+        image_ids = self.repository.users_purge(user_ids)
+        self.unit_of_work.commit()
+        for image_id in image_ids:
             self.image_repository.delete(image_id)
         return len(user_ids)
 
@@ -135,6 +142,7 @@ class MatchService:
             location=location,
         )
         task = self.repository.create_task(task)
+        self.unit_of_work.commit()
         return task
 
     def get_task_by_id(self, task_id: int) -> Task:
@@ -153,6 +161,7 @@ class MatchService:
         user = self.get_user_by_id(user_id)
         task.join(user, message)
         task = self.repository.task_update(task)
+        self.unit_of_work.commit()
         return task
 
     def task_approve(self, task_id: int, owner_id: int, helper_id: int) -> Task:
@@ -160,6 +169,7 @@ class MatchService:
         owner = self.get_user_by_id(owner_id)
         task.approve_helper(owner, helper_id=UserId(helper_id))
         task = self.repository.task_update(task)
+        self.unit_of_work.commit()
         return task
 
     def task_reject(self, task_id: int, owner_id: int, helper_id: int) -> Task:
@@ -167,13 +177,16 @@ class MatchService:
         owner = self.get_user_by_id(owner_id)
         task.reject_helper(owner, helper_id=UserId(helper_id))
         task = self.repository.task_update(task)
+        self.unit_of_work.commit()
         return task
 
     def task_withdraw(self, task_id: int, helper_id: int) -> Task:
         task = self.get_task_by_id(task_id)
         helper = self.get_user_by_id(helper_id)
         task.withdraw(helper)
-        return self.repository.task_update(task)
+        task = self.repository.task_update(task)
+        self.unit_of_work.commit()
+        return task
 
     def task_edit(
         self,
@@ -210,6 +223,7 @@ class MatchService:
             location=location,
         )
         task = self.repository.task_update(task)
+        self.unit_of_work.commit()
         return task
 
     def get_task_image(self, image_id: str) -> bytes:
@@ -224,6 +238,7 @@ class MatchService:
         image_ids = [ImageId(self.image_repository.upload(image)) for image in images]
         task.add_images(owner, image_ids)
         task = self.repository.task_update(task)
+        self.unit_of_work.commit()
         return task
 
     def task_remove_image(self, task_id: int, owner_id: int, image_id: str) -> Task:
@@ -232,6 +247,7 @@ class MatchService:
         task.remove_image(owner, ImageId(image_id))
         task = self.repository.task_update(task)
         self.repository.images_delete([ImageId(image_id)])
+        self.unit_of_work.commit()
         self.image_repository.delete(image_id)
         return task
 
@@ -240,6 +256,7 @@ class MatchService:
         owner = self.get_user_by_id(owner_id)
         task.close(owner)
         task = self.repository.task_update(task)
+        self.unit_of_work.commit()
         return task
 
     def task_report_success(self, task_id: int, owner_id: int) -> Task:
@@ -247,6 +264,7 @@ class MatchService:
         owner = self.get_user_by_id(owner_id)
         task.report_succeeded(owner)
         task = self.repository.task_update(task)
+        self.unit_of_work.commit()
         return task
 
     def task_report_failed(self, task_id: int, owner_id: int) -> Task:
@@ -254,6 +272,7 @@ class MatchService:
         owner = self.get_user_by_id(owner_id)
         task.report_failed(owner)
         task = self.repository.task_update(task)
+        self.unit_of_work.commit()
         return task
 
     def _get_task_stats(self) -> dict[str, int]:
