@@ -60,6 +60,7 @@ class TaskEventType(StrEnum):
     OFFERED = "offered"
     APPROVED = "approved"
     REJECTED = "rejected"
+    WITHDRAWN = "withdrawn"
     CLOSED = "closed"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
@@ -226,6 +227,16 @@ class Task:
         self.status = TaskStatus.OPEN
         self.helper_id = None
         self._record_event(TaskEventType.REJECTED, actor_id=user.id, helper_id=helper_id)
+        self._post_task_update()
+
+    def withdraw(self, helper: User) -> None:
+        if self.status not in (TaskStatus.PENDING, TaskStatus.APPROVED):
+            raise InvalidTaskAction("Cannot withdraw from this task.")
+        if self.helper_id != helper.id:
+            raise InvalidTaskAction("User is not the helper of this task.")
+        self.status = TaskStatus.OPEN
+        self.helper_id = None
+        self._record_event(TaskEventType.WITHDRAWN, actor_id=helper.id, helper_id=helper.id)
         self._post_task_update()
 
     def report_succeeded(self, user: User) -> None:

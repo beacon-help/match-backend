@@ -279,6 +279,7 @@
           "join",
           "approve",
           "reject",
+          "withdraw",
           "close",
           "report_success",
           "report_failure"
@@ -401,6 +402,7 @@
           "offered",
           "approved",
           "rejected",
+          "withdrawn",
           "closed",
           "succeeded",
           "failed"

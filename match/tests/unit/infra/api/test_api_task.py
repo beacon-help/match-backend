@@ -669,3 +669,24 @@ def test_add_images_to_cancelled_task_is_forbidden(test_client, image_storage_di
 
     assert response.status_code == HTTPStatus.FORBIDDEN
     assert list(image_storage_dir.iterdir()) == []
+
+
+def test_helper_withdraws_from_task(test_client):
+    task_url = "/task/100/manage"
+    test_client.put(
+        task_url,
+        params={"action": TaskAction.JOIN, "message": "I can help"},
+        headers=build_headers(101),
+    )
+
+    response = test_client.put(
+        task_url, params={"action": TaskAction.WITHDRAW}, headers=build_headers(101)
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    task = test_client.get("/task/100", headers=build_headers(100)).json()
+    adam = {"id": 101, "first_name": "Adam"}
+    assert task["status"] == "open"
+    assert task["helper"] is None
+    assert task["events"][-1]["type"] == "withdrawn"
+    assert task["events"][-1]["actor"] == adam

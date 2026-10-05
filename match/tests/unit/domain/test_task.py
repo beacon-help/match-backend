@@ -195,3 +195,39 @@ def test_finished_task_cannot_be_changed(status, change):
 
     assert task.title == "title"
     assert task.images == ["img-1"]
+
+
+@pytest.mark.parametrize("approved", (False, True), ids=("pending", "approved"))
+def test_helper_withdraws_and_task_reopens(approved):
+    owner = build_user(1)
+    helper = build_user(2)
+    task = build_task(owner)
+    task.join(helper.id, "I can help")
+    if approved:
+        task.approve_helper(owner, helper.id)
+
+    task.withdraw(helper)
+
+    assert task.status == TaskStatus.OPEN
+    assert task.helper_id is None
+    assert event_summary(task)[-1] == (TaskEventType.WITHDRAWN, 2, 2)
+
+
+def test_only_current_helper_can_withdraw():
+    owner = build_user(1)
+    task = build_task(owner)
+    task.join(2, "I can help")
+
+    with pytest.raises(InvalidTaskAction):
+        task.withdraw(build_user(3))
+
+    assert task.status == TaskStatus.PENDING
+    assert task.helper_id == 2
+
+
+def test_withdraw_from_open_task_raises():
+    owner = build_user(1)
+    task = build_task(owner)
+
+    with pytest.raises(InvalidTaskAction):
+        task.withdraw(build_user(2))

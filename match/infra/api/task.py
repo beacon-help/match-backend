@@ -196,6 +196,8 @@ def manage_task(
                         status_code=HTTPStatus.BAD_REQUEST, detail="Helper id not provided."
                     )
                 task = service.task_reject(task_id, owner_id=user.id, helper_id=helper_id)
+            case TaskAction.WITHDRAW:
+                task = service.task_withdraw(task_id, helper_id=user.id)
             case TaskAction.CLOSE:
                 task = service.task_close(task_id, owner_id=user.id)
             case TaskAction.REPORT_SUCCESS:
