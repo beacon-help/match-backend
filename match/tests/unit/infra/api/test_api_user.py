@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from match import bootstrap
+from match.app.service import MatchService
 from match.domain.exceptions import UserNotFound
 from match.tests.conftest import build_headers
 from match.tests.unit.infra.api.conftest import SEED_PASSWORD, VALID_VERIF_CODE
@@ -242,10 +242,10 @@ def test_get_deleted_user_answers_like_unknown_user(test_client, deleted_user):
 
 
 def test_delete_me_answers_like_unknown_user_when_already_gone(test_client, monkeypatch):
-    def raise_error(user_id):
+    def raise_error(service, user_id):
         raise UserNotFound
 
-    monkeypatch.setattr(bootstrap.match_service, "delete_user", raise_error)
+    monkeypatch.setattr(MatchService, "delete_user", raise_error)
 
     response = test_client.delete("/user/me", headers=build_headers(100))
 

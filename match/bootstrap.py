@@ -1,28 +1,29 @@
+from fastapi import Depends
+from sqlalchemy.orm.session import Session as SQLAlchemySession
+
 from match.app.service import MatchService
 from match.config import get_config
-from match.db import Session
+from match.db import get_session
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
 from match.infra.password_hasher import PwdlibPasswordHasher
 from match.infra.repositories import SQLiteRepository
 
-"""
-TODO: This is not a nice way of doing the dependency injections.
-"""
-
 config = get_config()
-
-repository = SQLiteRepository(session=Session())
 image_repository = LocalImageRepository()
-
-match_service = MatchService(
-    user_messaging_client=FakeMessageClient(config=config),
-    repository=repository,
-    image_repository=image_repository,
-    password_hasher=PwdlibPasswordHasher(),
-    _fe_host=config.FE_HOST,
-)
+message_client = FakeMessageClient(config=config)
+password_hasher = PwdlibPasswordHasher()
 
 
-def get_service() -> MatchService:
-    return match_service
+def build_service(session: SQLAlchemySession) -> MatchService:
+    return MatchService(
+        user_messaging_client=message_client,
+        repository=SQLiteRepository(session=session),
+        image_repository=image_repository,
+        password_hasher=password_hasher,
+        _fe_host=config.FE_HOST,
+    )
+
+
+def get_service(session: SQLAlchemySession = Depends(get_session)) -> MatchService:
+    return build_service(session)
