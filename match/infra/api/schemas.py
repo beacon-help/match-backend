@@ -60,10 +60,6 @@ class TaskStatus(Enum):
     CANCELLED = "cancelled"
 
 
-class TaskType(Enum):
-    TASK_TYPE_1 = "task_type_1"
-
-
 class Location(BaseModel):
     lat: Latitude
     lon: Longitude

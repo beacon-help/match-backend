@@ -780,25 +780,6 @@
         ]
       }
     },
-    "/break": {
-      "get": {
-        "operationId": "trigger_error_break_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Trigger Error",
-        "tags": [
-          "health"
-        ]
-      }
-    },
     "/health": {
       "get": {
         "operationId": "health_check_health_get",
