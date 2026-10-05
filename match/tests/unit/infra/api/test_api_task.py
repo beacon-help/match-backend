@@ -715,3 +715,18 @@ def test_edit_task_with_blank_address_is_rejected(test_client):
     )
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_helper_offers_come_from_offer_events(test_client):
+    test_client.put(
+        "/task/100/manage",
+        params={"action": TaskAction.JOIN, "message": "I can help"},
+        headers=build_headers(101),
+    )
+
+    task = test_client.get("/task/100", headers=build_headers(100)).json()
+
+    offered = next(event for event in task["events"] if event["type"] == "offered")
+    assert task["helper_offers"] == [
+        {"user_id": 101, "offered_at": offered["occurred_at"], "message": "I can help"}
+    ]

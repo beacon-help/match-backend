@@ -33,26 +33,11 @@ class Category(StrEnum):
     OTHER = "other"
 
 
-@dataclass
+@dataclass(frozen=True)
 class HelperOffer:
     user_id: UserId
     offered_at: datetime
     message: str
-
-    def to_dict(self) -> dict:
-        return {
-            "user_id": self.user_id,
-            "offered_at": self.offered_at.isoformat(),
-            "message": self.message,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "HelperOffer":
-        return cls(
-            user_id=data["user_id"],
-            offered_at=datetime.fromisoformat(data["offered_at"]),
-            message=data["message"],
-        )
 
 
 class TaskEventType(StrEnum):
@@ -117,7 +102,6 @@ class Task:
     category: Category
     location: Location | None
     helper_id: UserId | None = None
-    helper_offers: list[HelperOffer] = field(default_factory=list)
     images: list[ImageId] = field(default_factory=list)
     events: list[TaskEvent] = field(default_factory=list)
     updated_at: datetime | None = None
@@ -125,6 +109,16 @@ class Task:
 
     def __repr__(self) -> str:
         return f"<Task {self.id}>"
+
+    @property
+    def helper_offers(self) -> list[HelperOffer]:
+        return [
+            HelperOffer(
+                user_id=event.actor_id, offered_at=event.occurred_at, message=event.message or ""
+            )
+            for event in self.events
+            if event.type == TaskEventType.OFFERED
+        ]
 
     @property
     def participant_ids(self) -> set[UserId]:
@@ -152,7 +146,6 @@ class Task:
             status=TaskStatus.OPEN,
             owner_id=owner.id,
             helper_id=None,
-            helper_offers=[],
             title=title,
             description=description,
             category=category,
@@ -197,12 +190,6 @@ class Task:
             raise InvalidTaskAction(f"Cannot join this Task with status {self.status}")
         if self.owner_id == helper.id:
             raise InvalidTaskAction("Owner cannot join its own Task.")
-        offer = HelperOffer(
-            user_id=helper.id,
-            offered_at=datetime.now(tz.utc),
-            message=message,
-        )
-        self.helper_offers.append(offer)
         self.helper_id = helper.id
         self.status = TaskStatus.PENDING
         self._record_event(

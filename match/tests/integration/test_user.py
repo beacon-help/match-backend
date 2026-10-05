@@ -93,10 +93,10 @@ class TestUserTaskInteractions:
             text(
                 f"""
                 INSERT OR REPLACE INTO tasks (
-                    id, title, description, category, owner_id, helper_id, helper_offers,
+                    id, title, description, category, owner_id, helper_id,
                     updated_at, created_at, location_lat, location_lon, location_address
                 ) VALUES (
-                    {task_id}, 'Help', 'please help me', 'other', {owner_id}, {helper_id}, NULL,
+                    {task_id}, 'Help', 'please help me', 'other', {owner_id}, {helper_id},
                     null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address'
                 );
                 """

@@ -30,6 +30,7 @@ class TaskPresenter:
         task_dict.pop("helper_id")
         task_dict["owner"] = self.user_summary(task.owner_id, users_by_id)
         task_dict["helper"] = self.user_summary(task.helper_id, users_by_id)
+        task_dict["helper_offers"] = [asdict(offer) for offer in task.helper_offers]
         task_dict["images"] = [
             {"id": image_id, "path": self.image_url(image_id)} for image_id in task.images
         ]
