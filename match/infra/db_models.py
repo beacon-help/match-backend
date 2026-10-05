@@ -86,7 +86,7 @@ class TaskEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column()
 
 
-# View created by migration d56fce9e1540; kept off Base.metadata so create_all skips it.
+# View created by migration d56fce9e1540; kept off Base.metadata so autogenerate ignores it.
 tasks_with_status = Table(
     "tasks_with_status",
     MetaData(),

@@ -1,9 +1,8 @@
-from dataclasses import asdict
 from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 
-from match.app.exceptions import ImageNotFound, MatchServiceException, PermissionDenied
+from match.app.exceptions import ImageNotFound, MatchServiceException
 from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.config import get_config
@@ -73,16 +72,6 @@ def _task_filters_from_request(request: Request) -> TaskFilter:
     return filters
 
 
-def public_task_to_dict(task: Task) -> dict:
-    task_dict = asdict(task)
-    task_dict.pop("owner_id")
-    task_dict.pop("helper_id")
-    task_dict.pop("created_at")
-    task_dict.pop("updated_at")
-    task_dict.pop("description")
-    return task_dict
-
-
 @router.post("/", response_model=TaskSchema, status_code=HTTPStatus.CREATED)
 def create_task(
     task_creation_params: TaskCreationRequestSchema,
@@ -101,8 +90,6 @@ def create_task(
             location_address=task_creation_params.location.address,
         )
         return _task_response(task, service, presenter)
-    except PermissionDenied:
-        raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
     except InvalidLocation as e:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
 
