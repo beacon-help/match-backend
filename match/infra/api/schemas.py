@@ -136,6 +136,7 @@ class TaskAction(enum.StrEnum):
     JOIN = "join"
     APPROVE = "approve"
     REJECT = "reject"
+    WITHDRAW = "withdraw"
     CLOSE = "close"
     REPORT_SUCCESS = "report_success"
     REPORT_FAILURE = "report_failure"

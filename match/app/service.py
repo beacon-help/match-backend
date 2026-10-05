@@ -239,6 +239,12 @@ class MatchService:
         task = self.repository.task_update(task)
         return task
 
+    def task_withdraw(self, task_id: int, helper_id: int) -> Task:
+        task = self.get_task_by_id(task_id)
+        helper = self.get_user_by_id(helper_id)
+        task.withdraw(helper)
+        return self.repository.task_update(task)
+
     def task_edit(
         self,
         task_id: int,
