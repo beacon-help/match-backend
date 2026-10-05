@@ -32,14 +32,14 @@ class MatchService:
     def _construct_verification_url(self, code: str) -> str:
         return f"{self._fe_host}/verify/{code}"
 
-    def _create_user(
+    def create_user(
         self,
         user_type: UserType,
         first_name: str,
         last_name: str,
         email: str,
         password: str,
-        properties: Iterable[Any],
+        properties: Iterable[Any] = (),
     ) -> User:
         user_data = {
             "user_type": user_type,
@@ -53,19 +53,6 @@ class MatchService:
         user = self.user_repository.create_user(user_data=user_data)
         self.unit_of_work.commit()
         return user
-
-    def create_user(
-        self,
-        user_type: UserType,
-        first_name: str,
-        last_name: str,
-        email: str,
-        password: str,
-        properties: Iterable[Any] = (),
-    ) -> User:
-        return self._create_user(
-            user_type, first_name, last_name, email, password, properties=properties
-        )
 
     def authenticate(self, email: str, password: str) -> User:
         try:
