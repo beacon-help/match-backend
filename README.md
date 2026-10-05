@@ -49,4 +49,3 @@ uv add "dependency==version"
 - [ ] Change location to a domain object and add more validation.
 - [ ] Login returns the same generic error for both wrong credentials and unverified accounts. Differentiate the unverified case (e.g. distinct status/message and/or a resend-verification endpoint) so users know they need to verify their email.
 - [ ] Add social login (third-party OAuth2, e.g. Google) feeding the same token issuer in `match/infra/api/security.py`.
-- [ ] Task status mapping from events lives in three places: the `tasks_with_status` view SQL, `STATUS_BY_EVENT_TYPE` in migration `d56fce9e1540`, and the `Task` domain methods. Find a single source of truth.
