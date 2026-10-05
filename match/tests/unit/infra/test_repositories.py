@@ -3,8 +3,7 @@ import pytest
 from match.domain.exceptions import EmailAlreadyRegistered
 from match.domain.task import TaskStatus
 from match.domain.user import User, UserType
-from match.infra.repositories import InMemoryUserRepository
-from match.tests.fakes import seeded_task_repository, seeded_user_repository
+from match.tests.fakes import InMemoryUserRepository, seeded_task_repository, seeded_user_repository
 
 
 @pytest.fixture(scope="function")

@@ -9,8 +9,13 @@ from match.domain.exceptions import RepositoryException, TaskNotFound, UserNotFo
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
 from match.infra.password_hasher import PwdlibPasswordHasher
-from match.infra.repositories import InMemoryTaskRepository, InMemoryUserRepository
-from match.tests.fakes import FakeUnitOfWork, seeded_task_repository, seeded_user_repository
+from match.tests.fakes import (
+    FakeUnitOfWork,
+    InMemoryTaskRepository,
+    InMemoryUserRepository,
+    seeded_task_repository,
+    seeded_user_repository,
+)
 
 
 @pytest.fixture
