@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from datetime import timezone as tz
 
+from match.domain.interfaces import UnitOfWork
 from match.domain.task import Category, Location, Task, TaskEvent, TaskEventType, TaskStatus
 from match.domain.user import User, UserId, UserType
 from match.infra.repositories import InMemoryMatchRepository
@@ -77,3 +78,11 @@ def seeded_in_memory_repository() -> InMemoryMatchRepository:
         repository._persist_new_events(task)
         repository.tasks[task_id] = task
     return repository
+
+
+class FakeUnitOfWork(UnitOfWork):
+    def __init__(self) -> None:
+        self.commits = 0
+
+    def commit(self) -> None:
+        self.commits += 1

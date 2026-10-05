@@ -10,7 +10,7 @@ from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
 from match.infra.password_hasher import PwdlibPasswordHasher
 from match.infra.repositories import InMemoryMatchRepository
-from match.tests.fakes import seeded_in_memory_repository
+from match.tests.fakes import FakeUnitOfWork, seeded_in_memory_repository
 
 
 @pytest.fixture
@@ -20,6 +20,7 @@ def service(tmp_path, config):
         repository=seeded_in_memory_repository(),
         image_repository=LocalImageRepository(storage_dir=str(tmp_path / "imgs")),
         password_hasher=PwdlibPasswordHasher(),
+        unit_of_work=FakeUnitOfWork(),
         _fe_host=config.FE_HOST,
     )
 
@@ -101,3 +102,9 @@ def test_get_task_image_of_deleted_owner_raises_not_found(service):
 
     with pytest.raises(ImageNotFound):
         service.get_task_image(task.images[0])
+
+
+def test_delete_user_commits_once(service):
+    service.delete_user(100)
+
+    assert service.unit_of_work.commits == 1

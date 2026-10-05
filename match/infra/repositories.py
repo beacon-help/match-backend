@@ -253,8 +253,7 @@ class SQLiteRepository(MatchRepository):
             created_at=datetime.now(tz.utc),
         )
         self.session.add(db_model)
-        self.session.commit()
-        self.session.refresh(db_model)
+        self.session.flush()
         return self._user_to_domain(db_model)
 
     def user_update(self, user: User) -> User:
@@ -268,8 +267,7 @@ class SQLiteRepository(MatchRepository):
         db_obj.verification_code = user.verification_code
         db_obj.password_hash = user.password_hash
 
-        self.session.commit()
-        self.session.refresh(db_obj)
+        self.session.flush()
         return self._user_to_domain(db_obj)
 
     def get_user_by_id(self, user_id: int) -> User:
@@ -314,7 +312,7 @@ class SQLiteRepository(MatchRepository):
             .where(db_models.Task.owner_id == user.id, db_models.Task.deleted_at.is_(None))
             .values(deleted_at=user.deleted_at)
         )
-        self.session.commit()
+        self.session.flush()
 
     def get_user_ids_deleted_before(self, deleted_before: datetime) -> set[UserId]:
         statement = select(db_models.User.id).where(db_models.User.deleted_at < deleted_before)
@@ -333,7 +331,7 @@ class SQLiteRepository(MatchRepository):
         )
         self.session.execute(delete(db_models.Task).where(db_models.Task.owner_id.in_(user_ids)))
         self.session.execute(delete(db_models.User).where(db_models.User.id.in_(user_ids)))
-        self.session.commit()
+        self.session.flush()
         return [ImageId(image_id) for image_id in image_ids]
 
     def _get_images_for_tasks(self, task_ids: list[int]) -> dict[int, list[ImageId]]:
@@ -457,7 +455,7 @@ class SQLiteRepository(MatchRepository):
         self.session.flush()
         self._persist_new_images(db_model.id, task)
         self._persist_new_events(db_model.id, task)
-        self.session.commit()
+        self.session.flush()
         return self.get_task_by_id(db_model.id)
 
     @staticmethod
@@ -509,7 +507,7 @@ class SQLiteRepository(MatchRepository):
 
         self._persist_new_images(task.id, task)
         self._persist_new_events(task.id, task)
-        self.session.commit()
+        self.session.flush()
         return task
 
     def count_tasks_by_status(self) -> dict[TaskStatus, int]:
@@ -540,4 +538,4 @@ class SQLiteRepository(MatchRepository):
         db_images = self.session.scalars(statement).all()
         for db_image in db_images:
             self.session.delete(db_image)
-        self.session.commit()
+        self.session.flush()
