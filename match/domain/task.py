@@ -208,10 +208,8 @@ class Task:
         except NotAnOwner as e:
             raise InvalidTaskAction from e
 
-        if self.status not in (TaskStatus.PENDING, TaskStatus.APPROVED):
+        if self.status != TaskStatus.PENDING:
             raise InvalidTaskAction("Cannot reject helper.")
-        if self.helper_id is None:
-            raise InvalidTaskAction("No helper to reject.")
         if self.helper_id != helper_id:
             raise InvalidTaskAction(f"Incorrect helper_id {helper_id}")
         self.status = TaskStatus.OPEN

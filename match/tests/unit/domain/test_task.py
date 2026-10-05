@@ -119,6 +119,19 @@ def test_reject_records_rejected_helper():
     assert event_summary(task)[-1] == (TaskEventType.REJECTED, 1, 2)
 
 
+def test_reject_approved_helper_raises():
+    owner = build_user(1)
+    task = build_task(owner)
+    task.join(2, "I can help")
+    task.approve_helper(owner, 2)
+
+    with pytest.raises(InvalidTaskAction):
+        task.reject_helper(owner, 2)
+
+    assert task.helper_id == 2
+    assert event_summary(task)[-1] == (TaskEventType.APPROVED, 1, 2)
+
+
 def test_report_failed_records_event():
     owner = build_user(1)
     task = build_task(owner)
