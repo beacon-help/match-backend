@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Iterable
 
-from match.app.exceptions import AuthenticationFailed, ImageNotFound, MatchServiceException
+from match.app.exceptions import AuthenticationFailed, ImageNotFound
 from match.domain.exceptions import UserNotFound, UserVerificationCodeInvalid
 from match.domain.interfaces import (
     ImageRepository,
@@ -119,30 +119,17 @@ class MatchService:
     def create_task(
         self,
         user_id: int,
-        description: str,
         title: str,
-        category: str,
-        location_lon: float | None = None,
-        location_lat: float | None = None,
-        location_address: str | None = None,
+        description: str,
+        category: Category,
+        location: Location | None,
     ) -> Task:
         user = self.get_user_by_id(user_id)
-        if location_lat is not None and location_lon is not None and location_address is not None:
-            location = Location(lon=location_lon, lat=location_lat, address=location_address)
-        elif location_lat is None and location_lon is None and location_address is None:
-            location = None
-        else:
-            raise Exception("Incorrect location.")
-
-        try:
-            category_enum = Category(category.lower())
-        except ValueError:
-            raise MatchServiceException(f"Incorrect category {category}.")
         task = Task.create_task(
             owner=user,
             title=title,
             description=description,
-            category=category_enum,
+            category=category,
             location=location,
         )
         task = self.task_repository.save_task(task)
@@ -198,32 +185,16 @@ class MatchService:
         owner_id: int,
         title: str | None = None,
         description: str | None = None,
-        category: str | None = None,
-        location_lon: float | None = None,
-        location_lat: float | None = None,
-        location_address: str | None = None,
+        category: Category | None = None,
+        location: Location | None = None,
     ) -> Task:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
-
-        category_enum = None
-        if category is not None:
-            try:
-                category_enum = Category(category.lower())
-            except ValueError:
-                raise MatchServiceException(f"Incorrect category {category}.")
-
-        location = None
-        if location_lat is not None and location_lon is not None and location_address is not None:
-            location = Location(lon=location_lon, lat=location_lat, address=location_address)
-        elif location_lat is not None or location_lon is not None or location_address is not None:
-            raise MatchServiceException("Incorrect location.")
-
         task.edit(
             owner,
             title=title,
             description=description,
-            category=category_enum,
+            category=category,
             location=location,
         )
         task = self.task_repository.save_task(task)

@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 
-from match.app.exceptions import ImageNotFound, MatchServiceException
+from match.app.exceptions import ImageNotFound
 from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.config import get_config
@@ -13,10 +13,11 @@ from match.domain.exceptions import (
     TaskNotFound,
 )
 from match.domain.interfaces import TaskFilter
-from match.domain.task import Category, LocationRadius, Task, TaskStatus
+from match.domain.task import Category, Location, LocationRadius, Task, TaskStatus
 from match.domain.user import User
 from match.infra.api.auth import get_user_id, verified_user
 from match.infra.api.presenters import TaskPresenter
+from match.infra.api.schemas import Location as LocationSchema
 from match.infra.api.schemas import (
     PublicTaskSchema,
     TaskAction,
@@ -31,6 +32,12 @@ router = APIRouter()
 
 def get_task_presenter() -> TaskPresenter:
     return TaskPresenter(get_config().BACKEND_HOST)
+
+
+def _to_location(location: LocationSchema | None) -> Location | None:
+    if location is None:
+        return None
+    return Location(lat=location.lat, lon=location.lon, address=location.address)
 
 
 def _task_response(task: Task, service: MatchService, presenter: TaskPresenter) -> dict:
@@ -82,12 +89,10 @@ def create_task(
     try:
         task = service.create_task(
             user.id,
-            description=task_creation_params.description,
             title=task_creation_params.title,
+            description=task_creation_params.description,
             category=task_creation_params.category,
-            location_lon=task_creation_params.location.lon,
-            location_lat=task_creation_params.location.lat,
-            location_address=task_creation_params.location.address,
+            location=_to_location(task_creation_params.location),
         )
         return _task_response(task, service, presenter)
     except InvalidLocation as e:
@@ -149,7 +154,6 @@ def edit_task(
     service: MatchService = Depends(get_service),
     presenter: TaskPresenter = Depends(get_task_presenter),
 ) -> dict:
-    location = task_edit_params.location
     try:
         task = service.task_edit(
             task_id,
@@ -157,16 +161,12 @@ def edit_task(
             title=task_edit_params.title,
             description=task_edit_params.description,
             category=task_edit_params.category,
-            location_lon=location.lon if location else None,
-            location_lat=location.lat if location else None,
-            location_address=location.address if location else None,
+            location=_to_location(task_edit_params.location),
         )
     except TaskNotFound:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
     except InvalidTaskAction as e:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
-    except MatchServiceException:
-        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST)
     except InvalidLocation as e:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
 
