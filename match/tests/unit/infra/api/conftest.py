@@ -30,8 +30,8 @@ def populate_db():
             (103, 'VOLUNTEER', 'Garry', 'Moveout', 'garry@move.out', '[]', 0, :code_103, :pw, '2024-11-14T00:00:00Z');
         """
     statement = """
-        INSERT OR REPLACE INTO tasks (id,title,description,category,owner_id,helper_id,helper_offers,updated_at,created_at,location_lat,location_lon,location_address)
-        VALUES (100, 'Help', 'please help me', 'other', 100, null, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
+        INSERT OR REPLACE INTO tasks (id,title,description,category,owner_id,helper_id,updated_at,created_at,location_lat,location_lon,location_address)
+        VALUES (100, 'Help', 'please help me', 'other', 100, null, null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address');
         """
     events_statement = """
         INSERT INTO task_events (id,task_id,type,actor_id,helper_id,message,occurred_at)
