@@ -1,7 +1,9 @@
+from dataclasses import FrozenInstanceError
+
 import pytest
 
-from match.domain.exceptions import DomainException, InvalidTaskAction
-from match.domain.task import Category, Task, TaskEventType
+from match.domain.exceptions import DomainException, InvalidLocation, InvalidTaskAction, NotAnOwner
+from match.domain.task import Category, Location, LocationRadius, Task, TaskEventType, TaskStatus
 from match.domain.user import User, UserType
 
 
@@ -95,7 +97,7 @@ def test_task_lifecycle_records_events():
     owner = build_user(1)
     task = build_task(owner)
 
-    task.join(2, "I can help")
+    task.join(build_user(2), "I can help")
     task.approve_helper(owner, 2)
     task.report_succeeded(owner)
 
@@ -111,7 +113,7 @@ def test_task_lifecycle_records_events():
 def test_reject_records_rejected_helper():
     owner = build_user(1)
     task = build_task(owner)
-    task.join(2, "I can help")
+    task.join(build_user(2), "I can help")
 
     task.reject_helper(owner, 2)
 
@@ -119,10 +121,23 @@ def test_reject_records_rejected_helper():
     assert event_summary(task)[-1] == (TaskEventType.REJECTED, 1, 2)
 
 
+def test_reject_approved_helper_raises():
+    owner = build_user(1)
+    task = build_task(owner)
+    task.join(build_user(2), "I can help")
+    task.approve_helper(owner, 2)
+
+    with pytest.raises(InvalidTaskAction):
+        task.reject_helper(owner, 2)
+
+    assert task.helper_id == 2
+    assert event_summary(task)[-1] == (TaskEventType.APPROVED, 1, 2)
+
+
 def test_report_failed_records_event():
     owner = build_user(1)
     task = build_task(owner)
-    task.join(2, "I can help")
+    task.join(build_user(2), "I can help")
     task.approve_helper(owner, 2)
 
     task.report_failed(owner)
@@ -147,3 +162,109 @@ def test_failed_action_records_no_event():
         task.approve_helper(owner, 2)
 
     assert event_summary(task) == [(TaskEventType.CREATED, 1, None)]
+
+
+@pytest.mark.parametrize(
+    "lat,lon,radius_km",
+    (
+        pytest.param(91, 0, 1, id="latitude"),
+        pytest.param(0, 181, 1, id="longitude"),
+        pytest.param(0, 0, 0, id="radius"),
+    ),
+)
+def test_location_radius_rejects_invalid_values(lat, lon, radius_km):
+    with pytest.raises(InvalidLocation):
+        LocationRadius(lat=lat, lon=lon, radius_km=radius_km)
+
+
+@pytest.mark.parametrize("status", (TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED))
+@pytest.mark.parametrize(
+    "change",
+    (
+        pytest.param(lambda task, owner: task.edit(owner, title="new"), id="edit"),
+        pytest.param(lambda task, owner: task.add_images(owner, ["img-2"]), id="add-images"),
+        pytest.param(lambda task, owner: task.remove_image(owner, "img-1"), id="remove-image"),
+    ),
+)
+def test_finished_task_cannot_be_changed(status, change):
+    owner = build_user(1)
+    task = build_task(owner)
+    task.add_images(owner, ["img-1"])
+    task.status = status
+
+    with pytest.raises(InvalidTaskAction):
+        change(task, owner)
+
+    assert task.title == "title"
+    assert task.images == ["img-1"]
+
+
+@pytest.mark.parametrize("approved", (False, True), ids=("pending", "approved"))
+def test_helper_withdraws_and_task_reopens(approved):
+    owner = build_user(1)
+    helper = build_user(2)
+    task = build_task(owner)
+    task.join(helper, "I can help")
+    if approved:
+        task.approve_helper(owner, helper.id)
+
+    task.withdraw(helper)
+
+    assert task.status == TaskStatus.OPEN
+    assert task.helper_id is None
+    assert event_summary(task)[-1] == (TaskEventType.WITHDRAWN, 2, 2)
+
+
+def test_only_current_helper_can_withdraw():
+    owner = build_user(1)
+    task = build_task(owner)
+    task.join(build_user(2), "I can help")
+
+    with pytest.raises(InvalidTaskAction):
+        task.withdraw(build_user(3))
+
+    assert task.status == TaskStatus.PENDING
+    assert task.helper_id == 2
+
+
+def test_withdraw_from_open_task_raises():
+    owner = build_user(1)
+    task = build_task(owner)
+
+    with pytest.raises(InvalidTaskAction):
+        task.withdraw(build_user(2))
+
+
+@pytest.mark.parametrize(
+    "action",
+    (
+        pytest.param(lambda task, user: task.close(user), id="close"),
+        pytest.param(lambda task, user: task.edit(user, title="new"), id="edit"),
+        pytest.param(lambda task, user: task.report_succeeded(user), id="report-succeeded"),
+    ),
+)
+def test_owner_only_actions_raise_not_an_owner(action):
+    task = build_task(build_user(1))
+
+    with pytest.raises(NotAnOwner):
+        action(task, build_user(2))
+
+
+@pytest.mark.parametrize("address", ("", "   "))
+def test_location_requires_an_address(address):
+    with pytest.raises(InvalidLocation):
+        Location(lat=0, lon=0, address=address)
+
+
+def test_location_is_immutable():
+    location = Location(lat=0, lon=0, address="Main Square")
+
+    with pytest.raises(FrozenInstanceError):
+        location.address = "Elsewhere"
+
+
+def test_location_radius_contains_locations_within_its_radius():
+    valencia = LocationRadius(lat=39.4699, lon=-0.3763, radius_km=10)
+
+    assert valencia.contains(Location(lat=39.4550, lon=-0.3840, address="Ruzafa"))
+    assert not valencia.contains(Location(lat=40.4168, lon=-3.7038, address="Madrid"))

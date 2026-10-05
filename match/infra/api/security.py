@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from datetime import timezone as tz
 
 import jwt
-from pwdlib import PasswordHash
 
 from match.config import get_config
 
@@ -10,18 +9,8 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_TYPE = "access"
 REFRESH_TOKEN_TYPE = "refresh"
 
-_password_hash = PasswordHash.recommended()
-
 
 class TokenError(Exception): ...
-
-
-def hash_password(password: str) -> str:
-    return _password_hash.hash(password)
-
-
-def verify_password(password: str, hashed: str) -> bool:
-    return _password_hash.verify(password, hashed)
 
 
 def _create_token(user_id: int, token_type: str, expires_delta: timedelta) -> str:

@@ -2,7 +2,8 @@ import argparse
 from datetime import datetime, timedelta
 from datetime import timezone as tz
 
-from match.bootstrap import get_service
+from match.bootstrap import build_service
+from match.db import Session
 
 RETENTION_PERIOD = timedelta(days=30)
 
@@ -28,7 +29,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     deleted_before = parse_args(argv).before
-    purged = get_service().purge_deleted_users(deleted_before)
+    with Session() as session:
+        purged = build_service(session).purge_deleted_users(deleted_before)
     print(f"Purged {purged} account(s) deleted before {deleted_before.isoformat()}.")
 
 

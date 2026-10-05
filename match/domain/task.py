@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from datetime import timezone as tz
@@ -9,6 +10,8 @@ from match.domain.user import User, UserId
 
 ImageId = NewType("ImageId", str)
 
+EARTH_RADIUS_KM = 6371.0088
+
 
 class TaskStatus(StrEnum):
     OPEN = "open"
@@ -17,6 +20,9 @@ class TaskStatus(StrEnum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+FINISHED_STATUSES = (TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED)
 
 
 class Category(StrEnum):
@@ -30,26 +36,11 @@ class Category(StrEnum):
     OTHER = "other"
 
 
-@dataclass
+@dataclass(frozen=True)
 class HelperOffer:
     user_id: UserId
     offered_at: datetime
     message: str
-
-    def to_dict(self) -> dict:
-        return {
-            "user_id": self.user_id,
-            "offered_at": self.offered_at.isoformat(),
-            "message": self.message,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "HelperOffer":
-        return cls(
-            user_id=data["user_id"],
-            offered_at=datetime.fromisoformat(data["offered_at"]),
-            message=data["message"],
-        )
 
 
 class TaskEventType(StrEnum):
@@ -57,6 +48,7 @@ class TaskEventType(StrEnum):
     OFFERED = "offered"
     APPROVED = "approved"
     REJECTED = "rejected"
+    WITHDRAWN = "withdrawn"
     CLOSED = "closed"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
@@ -77,9 +69,11 @@ def _validate_coordinates(lat: float, lon: float, radius_km: float | None = None
         raise InvalidLocation("Invalid latitude.")
     if not -180 <= lon <= 180:
         raise InvalidLocation("Invalid longitude.")
+    if radius_km is not None and radius_km <= 0:
+        raise InvalidLocation("Invalid radius.")
 
 
-@dataclass
+@dataclass(frozen=True)
 class Location:
     lat: float
     lon: float
@@ -87,6 +81,8 @@ class Location:
 
     def __post_init__(self) -> None:
         _validate_coordinates(self.lat, self.lon)
+        if not self.address.strip():
+            raise InvalidLocation("Address is required.")
 
 
 @dataclass(frozen=True)
@@ -96,7 +92,17 @@ class LocationRadius:
     radius_km: float
 
     def __post_init__(self) -> None:
-        _validate_coordinates(self.lat, self.lon)
+        _validate_coordinates(self.lat, self.lon, self.radius_km)
+
+    def contains(self, location: Location) -> bool:
+        lat1, lat2 = math.radians(self.lat), math.radians(location.lat)
+        delta_lat = lat2 - lat1
+        delta_lon = math.radians(location.lon - self.lon)
+        haversine = (
+            math.sin(delta_lat / 2) ** 2
+            + math.cos(lat1) * math.cos(lat2) * math.sin(delta_lon / 2) ** 2
+        )
+        return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(haversine)) <= self.radius_km
 
 
 @dataclass
@@ -109,7 +115,6 @@ class Task:
     category: Category
     location: Location | None
     helper_id: UserId | None = None
-    helper_offers: list[HelperOffer] = field(default_factory=list)
     images: list[ImageId] = field(default_factory=list)
     events: list[TaskEvent] = field(default_factory=list)
     updated_at: datetime | None = None
@@ -117,6 +122,27 @@ class Task:
 
     def __repr__(self) -> str:
         return f"<Task {self.id}>"
+
+    @property
+    def helper_offers(self) -> list[HelperOffer]:
+        return [
+            HelperOffer(
+                user_id=event.actor_id, offered_at=event.occurred_at, message=event.message or ""
+            )
+            for event in self.events
+            if event.type == TaskEventType.OFFERED
+        ]
+
+    @property
+    def participant_ids(self) -> set[UserId]:
+        user_ids = {self.owner_id}
+        if self.helper_id is not None:
+            user_ids.add(self.helper_id)
+        for event in self.events:
+            user_ids.add(event.actor_id)
+            if event.helper_id is not None:
+                user_ids.add(event.helper_id)
+        return user_ids
 
     @classmethod
     def create_task(
@@ -133,7 +159,6 @@ class Task:
             status=TaskStatus.OPEN,
             owner_id=owner.id,
             helper_id=None,
-            helper_offers=[],
             title=title,
             description=description,
             category=category,
@@ -168,30 +193,25 @@ class Task:
         if self.owner_id != user.id:
             raise NotAnOwner("User is not an owner.")
 
-    def join(self, helper_id: UserId, message: str) -> None:
+    def validate_editable_by(self, user: User) -> None:
+        self._validate_owner(user)
+        if self.status in FINISHED_STATUSES:
+            raise InvalidTaskAction("Finished tasks cannot be changed.")
+
+    def join(self, helper: User, message: str) -> None:
         if self.status != TaskStatus.OPEN:
             raise InvalidTaskAction(f"Cannot join this Task with status {self.status}")
-        if self.owner_id == helper_id:
+        if self.owner_id == helper.id:
             raise InvalidTaskAction("Owner cannot join its own Task.")
-        offer = HelperOffer(
-            user_id=helper_id,
-            offered_at=datetime.now(tz.utc),
-            message=message,
-        )
-        self.helper_offers.append(offer)
-        self.helper_id = helper_id
+        self.helper_id = helper.id
         self.status = TaskStatus.PENDING
         self._record_event(
-            TaskEventType.OFFERED, actor_id=helper_id, helper_id=helper_id, message=message
+            TaskEventType.OFFERED, actor_id=helper.id, helper_id=helper.id, message=message
         )
         self._post_task_update()
 
     def approve_helper(self, user: User, helper_id: UserId) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self._validate_owner(user)
         if self.status != TaskStatus.PENDING or not self.helper_id:
             raise InvalidTaskAction("Cannot approve helper.")
         if self.helper_id != helper_id:
@@ -201,15 +221,9 @@ class Task:
         self._post_task_update()
 
     def reject_helper(self, user: User, helper_id: UserId) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
-        if self.status not in (TaskStatus.PENDING, TaskStatus.APPROVED):
+        self._validate_owner(user)
+        if self.status != TaskStatus.PENDING:
             raise InvalidTaskAction("Cannot reject helper.")
-        if self.helper_id is None:
-            raise InvalidTaskAction("No helper to reject.")
         if self.helper_id != helper_id:
             raise InvalidTaskAction(f"Incorrect helper_id {helper_id}")
         self.status = TaskStatus.OPEN
@@ -217,12 +231,18 @@ class Task:
         self._record_event(TaskEventType.REJECTED, actor_id=user.id, helper_id=helper_id)
         self._post_task_update()
 
-    def report_succeeded(self, user: User) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
+    def withdraw(self, helper: User) -> None:
+        if self.status not in (TaskStatus.PENDING, TaskStatus.APPROVED):
+            raise InvalidTaskAction("Cannot withdraw from this task.")
+        if self.helper_id != helper.id:
+            raise InvalidTaskAction("User is not the helper of this task.")
+        self.status = TaskStatus.OPEN
+        self.helper_id = None
+        self._record_event(TaskEventType.WITHDRAWN, actor_id=helper.id, helper_id=helper.id)
+        self._post_task_update()
 
+    def report_succeeded(self, user: User) -> None:
+        self._validate_owner(user)
         if self.status != TaskStatus.APPROVED:
             raise InvalidTaskAction("Cannot report this task.")
         self.status = TaskStatus.SUCCEEDED
@@ -230,11 +250,7 @@ class Task:
         self._post_task_update()
 
     def report_failed(self, user: User) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self._validate_owner(user)
         if self.status != TaskStatus.APPROVED:
             raise InvalidTaskAction("Cannot report this task.")
         self.status = TaskStatus.FAILED
@@ -249,11 +265,7 @@ class Task:
         category: Category | None = None,
         location: Location | None = None,
     ) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self.validate_editable_by(user)
         if title is not None:
             self.title = title
         if description is not None:
@@ -265,20 +277,12 @@ class Task:
         self._post_task_update()
 
     def add_images(self, user: User, image_ids: list[ImageId]) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self.validate_editable_by(user)
         self.images.extend(image_ids)
         self._post_task_update()
 
     def remove_image(self, user: User, image_id: ImageId) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self.validate_editable_by(user)
         if image_id not in self.images:
             raise DomainException(f"Image {image_id} not found on task.")
 
@@ -286,11 +290,7 @@ class Task:
         self._post_task_update()
 
     def close(self, user: User) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self._validate_owner(user)
         if self.status == TaskStatus.CANCELLED:
             raise InvalidTaskAction("Task already closed.")
         if self.status in (TaskStatus.SUCCEEDED, TaskStatus.FAILED):

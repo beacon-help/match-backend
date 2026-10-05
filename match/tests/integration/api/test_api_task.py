@@ -152,9 +152,16 @@ def test_list_tasks_filtered_by_radius(test_client):
 
 
 @pytest.mark.parametrize(
-    "params", ({"lat": 39.4738, "radius_km": 1}, {"lat": 39.4738, "lot": 39.4738})
+    "params",
+    (
+        pytest.param({"lat": 39.4738, "radius_km": 1}, id="missing-lon"),
+        pytest.param({"lat": 39.4738, "lot": 39.4738}, id="misspelled-lon"),
+        pytest.param({"lat": 200, "lon": 0.3756, "radius_km": 1}, id="latitude-out-of-range"),
+        pytest.param({"lat": 39.4738, "lon": 200, "radius_km": 1}, id="longitude-out-of-range"),
+        pytest.param({"lat": 39.4738, "lon": 0.3756, "radius_km": 0}, id="radius-not-positive"),
+    ),
 )
-def test_list_tasks_rejects_partial_radius_filter(test_client, params):
+def test_list_tasks_rejects_invalid_radius_filter(test_client, params):
     response = test_client.get("/task", params=params, headers=build_headers(100))
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
@@ -337,6 +344,28 @@ def test_edit_task_happy_path(test_client):
     assert task["description"] == "new description"
     assert task["category"] == "food"
     assert task["location"] == {"lat": 39.4738, "lon": 0.3756, "address": "New address"}
+    stored = test_client.get(f"/task/{new_task['id']}", headers=build_headers(100)).json()
+    assert stored["location"] == {"lat": 39.4738, "lon": 0.3756, "address": "New address"}
+    assert stored["title"] == "new title"
+
+
+def test_task_location_on_zero_coordinates_is_kept(test_client):
+    location = {"lat": 0.0, "lon": 0.0, "address": "Null Island"}
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": location,
+        },
+        headers=build_headers(100),
+    ).json()
+
+    response = test_client.get(f"/task/{new_task['id']}", headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["location"] == location
 
 
 def test_edit_task_partial_location_raises(test_client):
@@ -591,3 +620,113 @@ def test_deleted_owner_task_image_answers_like_unknown_image(test_client):
 
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == test_client.get("/task/images/does-not-exist").json()
+
+
+def test_manage_task_not_found(test_client):
+    response = test_client.put(
+        "/task/999999/manage",
+        params={"action": "close"},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_manage_task_rejects_invalid_transition(test_client):
+    response = test_client.put(
+        "/task/100/manage",
+        params={"action": "approve", "helper_id": 101},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+@pytest.fixture
+def cancelled_task():
+    session = Session()
+    insert_events(session, (100, "closed", 100, None))
+    session.commit()
+    return 100
+
+
+def test_edit_cancelled_task_is_forbidden(test_client, cancelled_task):
+    response = test_client.put(
+        f"/task/{cancelled_task}/edit", json=UPDATE_PAYLOAD, headers=build_headers(100)
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    task = test_client.get(f"/task/{cancelled_task}", headers=build_headers(100)).json()
+    assert task["title"] == "Help"
+
+
+def test_add_images_to_cancelled_task_is_forbidden(test_client, image_storage_dir, cancelled_task):
+    response = test_client.post(
+        f"/task/{cancelled_task}/images",
+        files={"images": ("photo.jpg", b"fake image bytes", "image/jpeg")},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert list(image_storage_dir.iterdir()) == []
+
+
+def test_helper_withdraws_from_task(test_client):
+    task_url = "/task/100/manage"
+    test_client.put(
+        task_url,
+        params={"action": TaskAction.JOIN, "message": "I can help"},
+        headers=build_headers(101),
+    )
+
+    response = test_client.put(
+        task_url, params={"action": TaskAction.WITHDRAW}, headers=build_headers(101)
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    task = test_client.get("/task/100", headers=build_headers(100)).json()
+    adam = {"id": 101, "first_name": "Adam"}
+    assert task["status"] == "open"
+    assert task["helper"] is None
+    assert task["events"][-1]["type"] == "withdrawn"
+    assert task["events"][-1]["actor"] == adam
+
+
+def test_create_task_with_blank_address_is_rejected(test_client):
+    response = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "  "},
+        },
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_edit_task_with_blank_address_is_rejected(test_client):
+    response = test_client.put(
+        "/task/100/edit",
+        json={**UPDATE_PAYLOAD, "location": {"lat": 1.0, "lon": 1.0, "address": ""}},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_helper_offers_come_from_offer_events(test_client):
+    test_client.put(
+        "/task/100/manage",
+        params={"action": TaskAction.JOIN, "message": "I can help"},
+        headers=build_headers(101),
+    )
+
+    task = test_client.get("/task/100", headers=build_headers(100)).json()
+
+    offered = next(event for event in task["events"] if event["type"] == "offered")
+    assert task["helper_offers"] == [
+        {"user_id": 101, "offered_at": offered["occurred_at"], "message": "I can help"}
+    ]

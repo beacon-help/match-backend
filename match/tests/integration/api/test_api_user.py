@@ -4,10 +4,10 @@ from uuid import uuid4
 
 import pytest
 
-from match import bootstrap
+from match.app.service import MatchService
 from match.domain.exceptions import UserNotFound
 from match.tests.conftest import build_headers
-from match.tests.unit.infra.api.conftest import SEED_PASSWORD, VALID_VERIF_CODE
+from match.tests.integration.api.conftest import SEED_PASSWORD, VALID_VERIF_CODE
 
 
 def build_user_response(user_id=100):
@@ -35,12 +35,11 @@ def test_get_user_me(test_client):
     assert response.json() == expected
 
 
-def test_get_user_by_id(test_client):
-    expected = build_user_response(100)
+def test_get_user_by_id_returns_public_profile(test_client):
     response = test_client.get("/user/100", headers=build_headers(101))
 
     assert response.status_code == HTTPStatus.OK
-    assert response.json() == expected
+    assert response.json() == {"id": 100, "user_type": "volunteer", "first_name": "John"}
 
 
 def test_login_happy_path(test_client):
@@ -147,9 +146,9 @@ def test_create_helpseeker_user_rejects_properties(test_client):
         pytest.param(
             "/user/signup/volunteer",
             {
-                "first_name": "John",
-                "last_name": "Johnson",
-                "email": "john@johnson.com",
+                "first_name": "Vera",
+                "last_name": "Volunteer",
+                "email": "vera@example.com",
                 "password": "s3cr3t-password",
                 "properties": ["has_car"],
             },
@@ -161,6 +160,23 @@ def test_create_user_happy_path(test_client, endpoint, payload):
     response = test_client.post(endpoint, data=json.dumps(payload))
 
     assert response.status_code == HTTPStatus.CREATED
+
+
+@pytest.mark.parametrize("endpoint", ("/user/signup/helpseeker", "/user/signup/volunteer"))
+def test_create_user_with_registered_email_conflicts(test_client, endpoint):
+    payload = {
+        "first_name": "Someone",
+        "last_name": "Else",
+        "email": "john@johnson.com",
+        "password": "s3cr3t-password",
+    }
+    if endpoint.endswith("volunteer"):
+        payload["properties"] = []
+
+    response = test_client.post(endpoint, json=payload)
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert "John" not in response.text
 
 
 def test_verify_user_happy_path(test_client):
@@ -226,10 +242,10 @@ def test_get_deleted_user_answers_like_unknown_user(test_client, deleted_user):
 
 
 def test_delete_me_answers_like_unknown_user_when_already_gone(test_client, monkeypatch):
-    def raise_error(user_id):
+    def raise_error(service, user_id):
         raise UserNotFound
 
-    monkeypatch.setattr(bootstrap.match_service, "delete_user", raise_error)
+    monkeypatch.setattr(MatchService, "delete_user", raise_error)
 
     response = test_client.delete("/user/me", headers=build_headers(100))
 

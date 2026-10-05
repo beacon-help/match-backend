@@ -1,10 +1,7 @@
 import json
-import math
-import random
-from collections import Counter, defaultdict
+from collections import defaultdict
 from collections.abc import Sequence
-from copy import deepcopy
-from datetime import datetime, timedelta
+from datetime import datetime
 from datetime import timezone as tz
 
 import sqlalchemy
@@ -12,10 +9,9 @@ from sqlalchemy import Select, delete, orm, select, update
 from sqlalchemy.orm.session import Session as SQLAlchemySession
 
 from match.domain import exceptions
-from match.domain.interfaces import MatchRepository, TaskFilter
+from match.domain.interfaces import TaskFilter, TaskRepository, UserRepository
 from match.domain.task import (
     Category,
-    HelperOffer,
     ImageId,
     Location,
     Task,
@@ -26,21 +22,6 @@ from match.domain.task import (
 from match.domain.user import User, UserId, UserType
 from match.infra import db_models
 
-EARTH_RADIUS_KM = 6371.0088
-
-
-def _distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    lat1_rad = math.radians(lat1)
-    lat2_rad = math.radians(lat2)
-    delta_lat = lat2_rad - lat1_rad
-    delta_lon = math.radians(lon2 - lon1)
-
-    haversine = (
-        math.sin(delta_lat / 2) ** 2
-        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
-    )
-    return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(haversine))
-
 
 def _filter_tasks_by_radius(tasks: list[Task], filters: TaskFilter) -> list[Task]:
     location_radius = filters.get("location_radius")
@@ -49,484 +30,13 @@ def _filter_tasks_by_radius(tasks: list[Task], filters: TaskFilter) -> list[Task
     return [
         task
         for task in tasks
-        if task.location is not None
-        and _distance_km(
-            location_radius.lat,
-            location_radius.lon,
-            task.location.lat,
-            task.location.lon,
-        )
-        <= location_radius.radius_km
+        if task.location is not None and location_radius.contains(task.location)
     ]
 
 
-_SEED_TIME = datetime(2024, 11, 14, tzinfo=tz.utc)
-_APPROVED_EVENTS = [TaskEventType.CREATED, TaskEventType.OFFERED, TaskEventType.APPROVED]
-_SEED_EVENT_TYPES = {
-    100: [TaskEventType.CREATED],
-    101: [TaskEventType.CREATED, TaskEventType.OFFERED],
-    102: _APPROVED_EVENTS,
-    103: [*_APPROVED_EVENTS, TaskEventType.SUCCEEDED],
-    104: [*_APPROVED_EVENTS, TaskEventType.FAILED],
-    105: [*_APPROVED_EVENTS, TaskEventType.CLOSED],
-}
-
-
-def _seed_events(task_id: int, owner_id: int, helper_id: int) -> list[TaskEvent]:
-    rng = random.Random(task_id)
-    events = []
-    occurred_at = _SEED_TIME
-    for event_type in _SEED_EVENT_TYPES[task_id]:
-        events.append(
-            TaskEvent(
-                type=event_type,
-                actor_id=UserId(helper_id if event_type == TaskEventType.OFFERED else owner_id),
-                helper_id=None if event_type == TaskEventType.CREATED else UserId(helper_id),
-                occurred_at=occurred_at,
-            )
-        )
-        occurred_at += timedelta(minutes=rng.randint(10, 48 * 60))
-    return events
-
-
-class InMemoryMatchRepository(MatchRepository):
-    def __init__(self, test_data: bool = True) -> None:
-        self.users: dict[int, User] = {}
-        self.tasks: dict[int, Task] = {}
-        self.images: dict[str, int] = {}
-        self.deleted_task_ids: set[int] = set()
-        self._last_event_id = 0
-        if test_data:
-            self._setup_test_data()
-
-    def _active_users(self) -> dict[int, User]:
-        return {user_id: user for user_id, user in self.users.items() if user.deleted_at is None}
-
-    def _active_tasks(self) -> dict[int, Task]:
-        return {
-            task_id: task
-            for task_id, task in self.tasks.items()
-            if task_id not in self.deleted_task_ids
-        }
-
-    def _persist_new_images(self, task_id: int, task: Task) -> None:
-        for image_id in task.images:
-            if image_id not in self.images:
-                self.images[image_id] = task_id
-
-    def _persist_new_events(self, task: Task) -> None:
-        for event in task.events:
-            if event.id is None:
-                self._last_event_id += 1
-                event.id = self._last_event_id
-
-    def _setup_test_data(self) -> None:
-        test_users = {
-            100: User(
-                id=UserId(100),
-                user_type=UserType.VOLUNTEER,
-                first_name="John",
-                last_name="Johnson",
-                email="john@johnson.com",
-                is_verified=True,
-                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
-            ),
-            101: User(
-                id=UserId(101),
-                user_type=UserType.HELP_SEEKER,
-                first_name="Adam",
-                last_name="Adamson",
-                email="adam@adamson.com",
-                is_verified=True,
-                verification_code="3a86ddd8-a08e-56g4-98cg-55456c1g3g17",
-            ),
-            102: User(
-                id=UserId(102),
-                user_type=UserType.HELP_SEEKER,
-                first_name="Gary",
-                last_name="Moveout",
-                email="gary@move.out",
-                is_verified=False,
-                verification_code="4b97eee9-b19f-67h5-09dh-66567d2h4h28",
-            ),
-            103: User(
-                id=UserId(101),
-                user_type=UserType.VOLUNTEER,
-                first_name="Garry",
-                last_name="Moveout",
-                email="garry@move.out",
-                is_verified=False,
-                verification_code="5ca8fffa-c2ag-78i6-1aei-77678e3i5i39",
-            ),
-        }
-        test_location = Location(lat=40.7128, lon=-74.0060, address="New York, NY")
-        test_tasks = {
-            100: Task(
-                id=100,
-                title="Help",
-                description="please help me",
-                owner_id=UserId(100),
-                status=TaskStatus.OPEN,
-                category=Category.OTHER,
-                location=test_location,
-                events=_seed_events(100, owner_id=100, helper_id=101),
-                updated_at=None,
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-            ),
-            101: Task(
-                id=101,
-                title="Help",
-                description="please help me",
-                owner_id=UserId(100),
-                helper_id=UserId(101),
-                status=TaskStatus.PENDING,
-                category=Category.OTHER,
-                location=test_location,
-                events=_seed_events(101, owner_id=100, helper_id=101),
-                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-            ),
-            102: Task(
-                id=102,
-                title="Help",
-                description="please help me",
-                owner_id=UserId(100),
-                helper_id=UserId(101),
-                status=TaskStatus.APPROVED,
-                category=Category.OTHER,
-                location=test_location,
-                events=_seed_events(102, owner_id=100, helper_id=101),
-                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-            ),
-            103: Task(
-                id=103,
-                title="Help",
-                description="please help me",
-                owner_id=UserId(100),
-                helper_id=UserId(101),
-                status=TaskStatus.SUCCEEDED,
-                category=Category.OTHER,
-                location=test_location,
-                events=_seed_events(103, owner_id=100, helper_id=101),
-                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-            ),
-            104: Task(
-                id=104,
-                title="Help",
-                description="please help me",
-                owner_id=UserId(100),
-                helper_id=UserId(101),
-                status=TaskStatus.FAILED,
-                category=Category.OTHER,
-                location=test_location,
-                events=_seed_events(104, owner_id=100, helper_id=101),
-                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-            ),
-            105: Task(
-                id=105,
-                title="Help",
-                description="please help me",
-                owner_id=UserId(100),
-                helper_id=UserId(101),
-                status=TaskStatus.CANCELLED,
-                category=Category.OTHER,
-                location=test_location,
-                events=_seed_events(105, owner_id=100, helper_id=101),
-                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-            ),
-        }
-
-        for task in test_tasks.values():
-            self._persist_new_events(task)
-        self.users.update(test_users)
-        self.tasks.update(test_tasks)
-
-    def create_user(self, user_data: dict) -> User:
-        user_id = 1
-        while user_id in self.users:
-            user_id += 1
-        user = User(id=UserId(user_id), **user_data)
-        self.users[user_id] = user
-        return deepcopy(user)
-
-    def user_update(self, user: User) -> User:
-        self.get_user_by_id(user.id)
-        self.users[user.id] = user
-        return deepcopy(self.users[user.id])
-
-    def get_user_by_id(self, user_id: int) -> User:
-        try:
-            return deepcopy(self._active_users()[user_id])
-        except KeyError:
-            raise exceptions.UserNotFound
-
-    def get_user_by_email(self, email: str) -> User:
-        for user in self._active_users().values():
-            if user.email == email:
-                return deepcopy(user)
-        raise exceptions.UserNotFound
-
-    def get_user_by_verification_code(self, verification_code: str) -> User:
-        for user in self._active_users().values():
-            if user.verification_code == verification_code:
-                return deepcopy(user)
-        raise exceptions.UserNotFound
-
-    def count_users_by_type(self) -> dict[UserType, int]:
-        return dict(Counter(user.user_type for user in self._active_users().values()))
-
-    def get_users_by_ids(self, user_ids: set[UserId]) -> dict[UserId, User]:
-        users = self._active_users()
-        return {user_id: deepcopy(users[user_id]) for user_id in user_ids if user_id in users}
-
-    def user_delete(self, user: User) -> None:
-        self.get_user_by_id(user.id)
-        self.users[user.id] = deepcopy(user)
-        self.deleted_task_ids.update(
-            task_id for task_id, task in self.tasks.items() if task.owner_id == user.id
-        )
-
-    def get_user_ids_deleted_before(self, deleted_before: datetime) -> set[UserId]:
-        return {
-            UserId(user_id)
-            for user_id, user in self.users.items()
-            if user.deleted_at is not None and user.deleted_at < deleted_before
-        }
-
-    def users_purge(self, user_ids: set[UserId]) -> list[ImageId]:
-        task_ids = {task_id for task_id, task in self.tasks.items() if task.owner_id in user_ids}
-        image_ids = [
-            ImageId(image_id) for image_id, task_id in self.images.items() if task_id in task_ids
-        ]
-        for image_id in image_ids:
-            del self.images[image_id]
-        for task_id in task_ids:
-            del self.tasks[task_id]
-        self.deleted_task_ids -= task_ids
-        for user_id in user_ids:
-            del self.users[user_id]
-        return image_ids
-
-    def create_task(self, task: Task) -> Task:
-        task_id = 1
-        while task_id in self.tasks:
-            task_id += 1
-        task.id = task_id
-        self._persist_new_images(task_id, task)
-        self._persist_new_events(task)
-        self.tasks[task_id] = deepcopy(task)
-        return deepcopy(task)
-
-    def get_task_by_id(self, task_id: int) -> Task:
-        try:
-            return deepcopy(self._active_tasks()[task_id])
-        except KeyError:
-            raise exceptions.TaskNotFound
-
-    def get_tasks(self, filters: TaskFilter | None = None) -> list[Task]:
-        filters = filters or {}
-        tasks = list(deepcopy(t) for t in self._active_tasks().values())
-        if "status" in filters:
-            tasks = [task for task in tasks if task.status == filters["status"]]
-        if "category" in filters:
-            tasks = [task for task in tasks if task.category == filters["category"]]
-        if "owner_id" in filters:
-            tasks = [task for task in tasks if task.owner_id == filters["owner_id"]]
-        if "helper_id" in filters:
-            tasks = [task for task in tasks if task.helper_id == filters["helper_id"]]
-        return _filter_tasks_by_radius(tasks, filters)
-
-    def task_update(self, task: Task) -> Task:
-        if task.id is None:
-            raise exceptions.RepositoryException("Cannot update task without id.")
-        self.get_task_by_id(task.id)
-        self._persist_new_images(task.id, task)
-        self._persist_new_events(task)
-        self.tasks[task.id] = task
-        return deepcopy(task)
-
-    def count_tasks_by_status(self) -> dict[TaskStatus, int]:
-        return dict(Counter(task.status for task in self._active_tasks().values()))
-
-    def image_exists(self, image_id: ImageId) -> bool:
-        return self.images.get(image_id) in self._active_tasks()
-
-    def images_delete(self, image_ids: list[ImageId]) -> None:
-        for image_id in image_ids:
-            self.images.pop(image_id, None)
-
-
-# @dataclass
-class SQLiteRepository(MatchRepository):
+class SQLiteUserRepository(UserRepository):
     def __init__(self, session: SQLAlchemySession) -> None:
         self.session = session
-        self._test_data_seeded = False
-
-    def _setup_test_data(self) -> None:
-        has_users = self.session.execute(select(db_models.User.id).limit(1)).first() is not None
-        has_tasks = self.session.execute(select(db_models.Task.id).limit(1)).first() is not None
-        if has_users and has_tasks:
-            return
-
-        test_users = [
-            db_models.User(
-                id=100,
-                user_type=UserType.VOLUNTEER,
-                first_name="John",
-                last_name="Johnson",
-                email="john@johnson.com",
-                properties=json.dumps([]),
-                is_verified=True,
-                verification_code="2f75ccc7-9f7d-45f3-87bf-44345b0f2f06",
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-            ),
-            db_models.User(
-                user_type=UserType.HELP_SEEKER,
-                id=101,
-                first_name="Adam",
-                last_name="Adamson",
-                email="adam@adamson.com",
-                properties=json.dumps([]),
-                is_verified=True,
-                verification_code="3a86ddd8-a08e-56g4-98cg-55456c1g3g17",
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-            ),
-            db_models.User(
-                id=102,
-                user_type=UserType.HELP_SEEKER,
-                first_name="Gary",
-                last_name="Moveout",
-                email="gary@move.out",
-                properties=json.dumps([]),
-                is_verified=False,
-                verification_code="4b97eee9-b19f-67h5-09dh-66567d2h4h28",
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-            ),
-            db_models.User(
-                id=103,
-                user_type=UserType.VOLUNTEER,
-                first_name="Garry",
-                last_name="Moveout",
-                email="garry@move.out",
-                properties=json.dumps([]),
-                is_verified=False,
-                verification_code="5ca8fffa-c2ag-78i6-1aei-77678e3i5i39",
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-            ),
-        ]
-
-        test_location = (40.7128, -74.0060, "New York, NY")
-        test_tasks = [
-            db_models.Task(
-                id=100,
-                title="Help",
-                description="please help me",
-                owner_id=100,
-                helper_id=None,
-                category=Category.OTHER.value,
-                updated_at=None,
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                location_lat=test_location[0],
-                location_lon=test_location[1],
-                location_address=test_location[2],
-            ),
-            db_models.Task(
-                id=101,
-                title="Help",
-                description="please help me",
-                owner_id=100,
-                helper_id=101,
-                category=Category.OTHER.value,
-                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                location_lat=test_location[0],
-                location_lon=test_location[1],
-                location_address=test_location[2],
-            ),
-            db_models.Task(
-                id=102,
-                title="Help",
-                description="please help me",
-                owner_id=100,
-                helper_id=101,
-                category=Category.OTHER.value,
-                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                location_lat=test_location[0],
-                location_lon=test_location[1],
-                location_address=test_location[2],
-            ),
-            db_models.Task(
-                id=103,
-                title="Help",
-                description="please help me",
-                owner_id=100,
-                helper_id=101,
-                category=Category.OTHER.value,
-                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                location_lat=test_location[0],
-                location_lon=test_location[1],
-                location_address=test_location[2],
-            ),
-            db_models.Task(
-                id=104,
-                title="Help",
-                description="please help me",
-                owner_id=100,
-                helper_id=101,
-                category=Category.OTHER.value,
-                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                location_lat=test_location[0],
-                location_lon=test_location[1],
-                location_address=test_location[2],
-            ),
-            db_models.Task(
-                id=105,
-                title="Help",
-                description="please help me",
-                owner_id=100,
-                helper_id=101,
-                category=Category.OTHER.value,
-                updated_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                created_at=datetime(2024, 11, 14, tzinfo=tz.utc),
-                location_lat=test_location[0],
-                location_lon=test_location[1],
-                location_address=test_location[2],
-            ),
-        ]
-
-        for user in test_users:
-            self.session.merge(user)
-        for task in test_tasks:
-            self.session.merge(task)
-        if not has_tasks:
-            for task_id in _SEED_EVENT_TYPES:
-                self.session.add_all(
-                    db_models.TaskEvent(
-                        task_id=task_id,
-                        type=event.type.value,
-                        actor_id=event.actor_id,
-                        helper_id=event.helper_id,
-                        occurred_at=event.occurred_at,
-                    )
-                    for event in _seed_events(task_id, owner_id=100, helper_id=101)
-                )
-        self.session.commit()
-
-    def _ensure_test_data(self) -> None:
-        if self._test_data_seeded:
-            return
-        try:
-            self._setup_test_data()
-        except sqlalchemy.exc.OperationalError:
-            return
-        self._test_data_seeded = True
 
     @staticmethod
     def _select_users() -> Select[tuple[db_models.User]]:
@@ -555,13 +65,12 @@ class SQLiteRepository(MatchRepository):
             raise exceptions.UserNotFound
 
     def create_user(self, user_data: dict) -> User:
-        self._ensure_test_data()
         user = User(id=UserId(0), **user_data)
         existing_user = self.session.scalars(
             self._select_users().filter_by(email=user.email)
         ).first()
         if existing_user is not None:
-            return self._user_to_domain(existing_user)
+            raise exceptions.EmailAlreadyRegistered
         db_model = db_models.User(
             user_type=user.user_type,
             first_name=user.first_name,
@@ -574,12 +83,10 @@ class SQLiteRepository(MatchRepository):
             created_at=datetime.now(tz.utc),
         )
         self.session.add(db_model)
-        self.session.commit()
-        self.session.refresh(db_model)
+        self.session.flush()
         return self._user_to_domain(db_model)
 
     def user_update(self, user: User) -> User:
-        self._ensure_test_data()
         db_obj = self._get_user_by_id(user.id)
 
         db_obj.first_name = user.first_name
@@ -589,18 +96,16 @@ class SQLiteRepository(MatchRepository):
         db_obj.is_verified = user.is_verified
         db_obj.verification_code = user.verification_code
         db_obj.password_hash = user.password_hash
+        db_obj.deleted_at = user.deleted_at
 
-        self.session.commit()
-        self.session.refresh(db_obj)
+        self.session.flush()
         return self._user_to_domain(db_obj)
 
     def get_user_by_id(self, user_id: int) -> User:
-        self._ensure_test_data()
         db_obj = self._get_user_by_id(user_id)
         return self._user_to_domain(db_obj)
 
     def get_user_by_email(self, email: str) -> User:
-        self._ensure_test_data()
         statement = self._select_users().filter_by(email=email)
         try:
             db_obj = self.session.execute(statement).one()[0]
@@ -609,7 +114,6 @@ class SQLiteRepository(MatchRepository):
         return self._user_to_domain(db_obj)
 
     def get_user_by_verification_code(self, verification_code: str) -> User:
-        self._ensure_test_data()
         statement = self._select_users().filter_by(verification_code=verification_code)
         try:
             db_obj = self.session.execute(statement).one()[0]
@@ -618,7 +122,6 @@ class SQLiteRepository(MatchRepository):
         return self._user_to_domain(db_obj)
 
     def get_users_by_ids(self, user_ids: set[UserId]) -> dict[UserId, User]:
-        self._ensure_test_data()
         if not user_ids:
             return {}
         statement = self._select_users().where(db_models.User.id.in_(user_ids))
@@ -633,34 +136,18 @@ class SQLiteRepository(MatchRepository):
         )
         return dict(self.session.execute(statement).tuples().all())
 
-    def user_delete(self, user: User) -> None:
-        self._get_user_by_id(user.id).deleted_at = user.deleted_at
-        self.session.execute(
-            update(db_models.Task)
-            .where(db_models.Task.owner_id == user.id, db_models.Task.deleted_at.is_(None))
-            .values(deleted_at=user.deleted_at)
-        )
-        self.session.commit()
-
     def get_user_ids_deleted_before(self, deleted_before: datetime) -> set[UserId]:
         statement = select(db_models.User.id).where(db_models.User.deleted_at < deleted_before)
         return {UserId(user_id) for user_id in self.session.scalars(statement)}
 
-    def users_purge(self, user_ids: set[UserId]) -> list[ImageId]:
-        task_ids = select(db_models.Task.id).where(db_models.Task.owner_id.in_(user_ids))
-        image_ids = list(
-            self.session.scalars(
-                select(db_models.Image.id).where(db_models.Image.task_id.in_(task_ids))
-            )
-        )
-        self.session.execute(delete(db_models.Image).where(db_models.Image.task_id.in_(task_ids)))
-        self.session.execute(
-            delete(db_models.TaskEvent).where(db_models.TaskEvent.task_id.in_(task_ids))
-        )
-        self.session.execute(delete(db_models.Task).where(db_models.Task.owner_id.in_(user_ids)))
+    def users_purge(self, user_ids: set[UserId]) -> None:
         self.session.execute(delete(db_models.User).where(db_models.User.id.in_(user_ids)))
-        self.session.commit()
-        return [ImageId(image_id) for image_id in image_ids]
+        self.session.flush()
+
+
+class SQLiteTaskRepository(TaskRepository):
+    def __init__(self, session: SQLAlchemySession) -> None:
+        self.session = session
 
     def _get_images_for_tasks(self, task_ids: list[int]) -> dict[int, list[ImageId]]:
         statement = select(db_models.Image).where(db_models.Image.task_id.in_(task_ids))
@@ -669,15 +156,18 @@ class SQLiteRepository(MatchRepository):
             images_by_task_id[obj.task_id].append(ImageId(obj.id))
         return images_by_task_id
 
-    def _persist_new_images(self, task_id: int, task: Task) -> None:
-        existing_ids = set(
+    def _sync_images(self, task_id: int, task: Task) -> None:
+        stored_ids = set(
             self.session.scalars(select(db_models.Image.id).filter_by(task_id=task_id))
         )
-        new_ids = [image_id for image_id in task.images if image_id not in existing_ids]
-        if not new_ids:
-            return
-        db_images = [db_models.Image(id=image_id, task_id=task_id) for image_id in new_ids]
-        self.session.add_all(db_images)
+        removed_ids = stored_ids - set(task.images)
+        if removed_ids:
+            self.session.execute(delete(db_models.Image).where(db_models.Image.id.in_(removed_ids)))
+        self.session.add_all(
+            db_models.Image(id=image_id, task_id=task_id)
+            for image_id in task.images
+            if image_id not in stored_ids
+        )
         self.session.flush()
 
     def _get_events_for_tasks(self, task_ids: list[int]) -> dict[int, list[TaskEvent]]:
@@ -733,7 +223,7 @@ class SQLiteRepository(MatchRepository):
     def _task_to_domain(
         obj: db_models.Task, status: str, images: list[ImageId], events: list[TaskEvent]
     ) -> Task:
-        if obj.location_lat and obj.location_lon and obj.location_address:
+        if obj.location_lat is not None and obj.location_lon is not None and obj.location_address:
             location = Location(
                 lat=obj.location_lat,
                 lon=obj.location_lon,
@@ -742,21 +232,12 @@ class SQLiteRepository(MatchRepository):
         else:
             location = None
 
-        helper_offers_list = []
-        if obj.helper_offers:
-            try:
-                offers_data = json.loads(obj.helper_offers)
-                helper_offers_list = [HelperOffer.from_dict(offer) for offer in offers_data]
-            except (json.JSONDecodeError, ValueError):
-                helper_offers_list = []
-
         return Task(
             id=obj.id,
             title=obj.title,
             description=obj.description,
             owner_id=UserId(obj.owner_id),
             helper_id=UserId(obj.helper_id) if obj.helper_id is not None else None,
-            helper_offers=helper_offers_list,
             images=images,
             events=events,
             status=TaskStatus(status),
@@ -775,31 +256,24 @@ class SQLiteRepository(MatchRepository):
         except sqlalchemy.orm.exc.NoResultFound:
             raise exceptions.TaskNotFound
 
-    def create_task(self, task: Task) -> Task:
-        helper_offers_json = (
-            json.dumps([offer.to_dict() for offer in task.helper_offers])
-            if task.helper_offers
-            else None
-        )
-        db_model = db_models.Task(
-            title=task.title,
-            description=task.description,
-            owner_id=task.owner_id,
-            category=task.category.value,
-            helper_id=task.helper_id,
-            helper_offers=helper_offers_json,
-            updated_at=task.updated_at,
-            created_at=task.created_at,
-            location_lat=task.location.lat if task.location else None,
-            location_lon=task.location.lon if task.location else None,
-            location_address=task.location.address if task.location else None,
-        )
-        self.session.add(db_model)
+    def save_task(self, task: Task) -> Task:
+        if task.id is None:
+            db_obj = db_models.Task(owner_id=task.owner_id, created_at=task.created_at)
+            self.session.add(db_obj)
+        else:
+            db_obj = self._get_task_by_id(task.id)
+        db_obj.title = task.title
+        db_obj.description = task.description
+        db_obj.helper_id = task.helper_id
+        db_obj.category = task.category.value
+        db_obj.location_lat = task.location.lat if task.location else None
+        db_obj.location_lon = task.location.lon if task.location else None
+        db_obj.location_address = task.location.address if task.location else None
+        db_obj.updated_at = task.updated_at
         self.session.flush()
-        self._persist_new_images(db_model.id, task)
-        self._persist_new_events(db_model.id, task)
-        self.session.commit()
-        return self.get_task_by_id(db_model.id)
+        self._sync_images(db_obj.id, task)
+        self._persist_new_events(db_obj.id, task)
+        return self.get_task_by_id(db_obj.id)
 
     @staticmethod
     def _select_tasks_with_status() -> Select[tuple[db_models.Task, str]]:
@@ -834,27 +308,6 @@ class SQLiteRepository(MatchRepository):
         tasks = self._tasks_to_domain(self.session.execute(statement).tuples().all())
         return _filter_tasks_by_radius(tasks, filters)
 
-    def task_update(self, task: Task) -> Task:
-        if not task.id:
-            raise exceptions.RepositoryException("Cannot update task without id.")
-        db_obj = self._get_task_by_id(task.id)
-
-        db_obj.title = task.title
-        db_obj.description = task.description
-        db_obj.helper_id = task.helper_id
-        db_obj.helper_offers = (
-            json.dumps([offer.to_dict() for offer in task.helper_offers])
-            if task.helper_offers
-            else None
-        )
-        db_obj.category = task.category.value
-        db_obj.updated_at = task.updated_at
-
-        self._persist_new_images(task.id, task)
-        self._persist_new_events(task.id, task)
-        self.session.commit()
-        return task
-
     def count_tasks_by_status(self) -> dict[TaskStatus, int]:
         view = db_models.tasks_with_status
         statement = (
@@ -876,11 +329,25 @@ class SQLiteRepository(MatchRepository):
         )
         return self.session.scalar(statement) is not None
 
-    def images_delete(self, image_ids: list[ImageId]) -> None:
-        if not image_ids:
-            return
-        statement = select(db_models.Image).where(db_models.Image.id.in_(image_ids))
-        db_images = self.session.scalars(statement).all()
-        for db_image in db_images:
-            self.session.delete(db_image)
-        self.session.commit()
+    def tasks_delete_owned_by(self, owner_id: UserId, deleted_at: datetime) -> None:
+        self.session.execute(
+            update(db_models.Task)
+            .where(db_models.Task.owner_id == owner_id, db_models.Task.deleted_at.is_(None))
+            .values(deleted_at=deleted_at)
+        )
+        self.session.flush()
+
+    def tasks_purge_owned_by(self, owner_ids: set[UserId]) -> list[ImageId]:
+        task_ids = select(db_models.Task.id).where(db_models.Task.owner_id.in_(owner_ids))
+        image_ids = list(
+            self.session.scalars(
+                select(db_models.Image.id).where(db_models.Image.task_id.in_(task_ids))
+            )
+        )
+        self.session.execute(delete(db_models.Image).where(db_models.Image.task_id.in_(task_ids)))
+        self.session.execute(
+            delete(db_models.TaskEvent).where(db_models.TaskEvent.task_id.in_(task_ids))
+        )
+        self.session.execute(delete(db_models.Task).where(db_models.Task.owner_id.in_(owner_ids)))
+        self.session.flush()
+        return [ImageId(image_id) for image_id in image_ids]
