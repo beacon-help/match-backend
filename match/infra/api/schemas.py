@@ -1,11 +1,10 @@
 import enum
 from datetime import datetime
-from enum import Enum
 
 from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr
 from pydantic_extra_types.coordinate import Latitude, Longitude
 
-from match.domain.task import Category, TaskEventType
+from match.domain.task import Category, TaskEventType, TaskStatus
 from match.domain.user import UserType, VolunteerProperties
 
 
@@ -49,15 +48,6 @@ class TokenSchema(BaseModel):
 
 class RefreshRequestSchema(BaseModel):
     refresh_token: str
-
-
-class TaskStatus(Enum):
-    OPEN = "open"
-    PENDING = "pending"
-    APPROVED = "approved"
-    SUCCEEDED = "succeeded"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
 class Location(BaseModel):
