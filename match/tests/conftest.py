@@ -19,18 +19,12 @@ def test_client():
 
 
 @pytest.fixture(autouse=True)
-def image_storage_dir(tmp_path):
+def image_storage_dir(tmp_path, monkeypatch):
     storage_dir = tmp_path / "imgs"
-    original = bootstrap.match_service.image_repository
-    bootstrap.match_service.image_repository = LocalImageRepository(storage_dir=str(storage_dir))
-    yield storage_dir
-    bootstrap.match_service.image_repository = original
-
-
-@pytest.fixture(autouse=True)
-def expire_cached_db_rows():
-    # The app reuses one long-lived session while tests reseed rows through other sessions.
-    bootstrap.repository.session.expire_all()
+    monkeypatch.setattr(
+        bootstrap, "image_repository", LocalImageRepository(storage_dir=str(storage_dir))
+    )
+    return storage_dir
 
 
 @pytest.fixture(scope="session")
