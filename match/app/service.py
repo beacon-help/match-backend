@@ -4,10 +4,15 @@ from typing import Any, Iterable
 
 from match.app.exceptions import AuthenticationFailed, ImageNotFound, MatchServiceException
 from match.domain.exceptions import UserNotFound, UserVerificationCodeInvalid
-from match.domain.interfaces import ImageRepository, MatchRepository, MessageClient, TaskFilter
+from match.domain.interfaces import (
+    ImageRepository,
+    MatchRepository,
+    MessageClient,
+    PasswordHasher,
+    TaskFilter,
+)
 from match.domain.task import Category, ImageId, Location, Task, TaskStatus
 from match.domain.user import User, UserId, UserType, create_user_verification_message
-from match.infra.api.security import hash_password, verify_password
 
 VERIFICATION_URL = "localhost:8000/user/verify/"
 DELETED_USER_FIRST_NAME = "Deleted user"
@@ -18,6 +23,7 @@ class MatchService:
     user_messaging_client: MessageClient
     repository: MatchRepository
     image_repository: ImageRepository
+    password_hasher: PasswordHasher
     _fe_host: str
 
     def _construct_verification_url(self, code: str) -> str:
@@ -39,7 +45,7 @@ class MatchService:
             "email": email,
             "is_verified": False,
             "properties": [getattr(property_, "value", property_) for property_ in properties],
-            "password_hash": hash_password(password),
+            "password_hash": self.password_hasher.hash(password),
         }
         user = self.repository.create_user(user_data=user_data)
         return user
@@ -62,7 +68,9 @@ class MatchService:
             user = self.repository.get_user_by_email(email)
         except UserNotFound:
             raise AuthenticationFailed
-        if user.password_hash is None or not verify_password(password, user.password_hash):
+        if user.password_hash is None or not self.password_hasher.verify(
+            password, user.password_hash
+        ):
             raise AuthenticationFailed
         if not user.is_verified:
             raise AuthenticationFailed

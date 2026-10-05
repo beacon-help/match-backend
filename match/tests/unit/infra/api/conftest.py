@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import text
 
 from match.db import Session
-from match.infra.api.security import hash_password
+from match.infra.password_hasher import PwdlibPasswordHasher
 
 VALID_VERIF_CODE = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
 SEED_PASSWORD = "s3cr3t-password"
@@ -11,7 +11,7 @@ SEED_PASSWORD = "s3cr3t-password"
 @pytest.fixture(autouse=True)
 def populate_db():
     session = Session()
-    password_hash = hash_password(SEED_PASSWORD)
+    password_hash = PwdlibPasswordHasher().hash(SEED_PASSWORD)
     clear_users_statement = "DELETE FROM users;"
     clear_statement = "DELETE FROM tasks;"
     clear_images_statement = "DELETE FROM images;"

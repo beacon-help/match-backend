@@ -3,6 +3,7 @@ from match.config import get_config
 from match.db import Session
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
+from match.infra.password_hasher import PwdlibPasswordHasher
 from match.infra.repositories import SQLiteRepository
 
 """
@@ -18,6 +19,7 @@ match_service = MatchService(
     user_messaging_client=FakeMessageClient(config=config),
     repository=repository,
     image_repository=image_repository,
+    password_hasher=PwdlibPasswordHasher(),
     _fe_host=config.FE_HOST,
 )
 
