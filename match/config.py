@@ -2,6 +2,7 @@ import enum
 import logging
 import os
 from dataclasses import dataclass
+from functools import cache
 
 import match_config
 
@@ -34,6 +35,7 @@ class Config:
     REFRESH_TOKEN_TTL_DAYS: int
 
 
+@cache
 def get_config() -> Config:
     env_values: dict[str, str | None] = {}
     if "ENV" in os.environ:
