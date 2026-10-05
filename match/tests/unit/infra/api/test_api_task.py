@@ -342,6 +342,25 @@ def test_edit_task_happy_path(test_client):
     assert stored["title"] == "new title"
 
 
+def test_task_location_on_zero_coordinates_is_kept(test_client):
+    location = {"lat": 0.0, "lon": 0.0, "address": "Null Island"}
+    new_task = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": location,
+        },
+        headers=build_headers(100),
+    ).json()
+
+    response = test_client.get(f"/task/{new_task['id']}", headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["location"] == location
+
+
 def test_edit_task_partial_location_raises(test_client):
     new_task = test_client.post(
         "/task",

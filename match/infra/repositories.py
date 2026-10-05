@@ -733,7 +733,7 @@ class SQLiteRepository(MatchRepository):
     def _task_to_domain(
         obj: db_models.Task, status: str, images: list[ImageId], events: list[TaskEvent]
     ) -> Task:
-        if obj.location_lat and obj.location_lon and obj.location_address:
+        if obj.location_lat is not None and obj.location_lon is not None and obj.location_address:
             location = Location(
                 lat=obj.location_lat,
                 lon=obj.location_lon,
