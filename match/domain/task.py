@@ -85,7 +85,7 @@ def _validate_coordinates(lat: float, lon: float, radius_km: float | None = None
         raise InvalidLocation("Invalid radius.")
 
 
-@dataclass
+@dataclass(frozen=True)
 class Location:
     lat: float
     lon: float
@@ -93,6 +93,8 @@ class Location:
 
     def __post_init__(self) -> None:
         _validate_coordinates(self.lat, self.lon)
+        if not self.address.strip():
+            raise InvalidLocation("Address is required.")
 
 
 @dataclass(frozen=True)

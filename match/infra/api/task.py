@@ -103,6 +103,8 @@ def create_task(
         return _task_response(task, service, presenter)
     except PermissionDenied:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
+    except InvalidLocation as e:
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
 
 
 @router.get("/images/{image_id}")
@@ -178,6 +180,8 @@ def edit_task(
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
     except MatchServiceException:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST)
+    except InvalidLocation as e:
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
 
     return _task_response(task, service, presenter)
 

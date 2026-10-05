@@ -1,7 +1,9 @@
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from match.domain.exceptions import DomainException, InvalidLocation, InvalidTaskAction, NotAnOwner
-from match.domain.task import Category, LocationRadius, Task, TaskEventType, TaskStatus
+from match.domain.task import Category, Location, LocationRadius, Task, TaskEventType, TaskStatus
 from match.domain.user import User, UserType
 
 
@@ -246,3 +248,16 @@ def test_owner_only_actions_raise_not_an_owner(action):
 
     with pytest.raises(NotAnOwner):
         action(task, build_user(2))
+
+
+@pytest.mark.parametrize("address", ("", "   "))
+def test_location_requires_an_address(address):
+    with pytest.raises(InvalidLocation):
+        Location(lat=0, lon=0, address=address)
+
+
+def test_location_is_immutable():
+    location = Location(lat=0, lon=0, address="Main Square")
+
+    with pytest.raises(FrozenInstanceError):
+        location.address = "Elsewhere"
