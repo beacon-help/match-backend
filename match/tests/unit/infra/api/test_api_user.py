@@ -35,12 +35,11 @@ def test_get_user_me(test_client):
     assert response.json() == expected
 
 
-def test_get_user_by_id(test_client):
-    expected = build_user_response(100)
+def test_get_user_by_id_returns_public_profile(test_client):
     response = test_client.get("/user/100", headers=build_headers(101))
 
     assert response.status_code == HTTPStatus.OK
-    assert response.json() == expected
+    assert response.json() == {"id": 100, "user_type": "volunteer", "first_name": "John"}
 
 
 def test_login_happy_path(test_client):

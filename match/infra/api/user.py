@@ -10,6 +10,7 @@ from match.domain.user import User, UserType
 from match.infra.api.auth import authenticated_user, verified_user
 from match.infra.api.schemas import (
     HelpseekerCreationRequestSchema,
+    PublicUserSchema,
     UserCreationBaseSchema,
     UserSchema,
     VolunteerCreationRequestSchema,
@@ -33,7 +34,7 @@ def delete_me(
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
 
 
-@router.get("/{user_id}", response_model=UserSchema)
+@router.get("/{user_id}", response_model=PublicUserSchema)
 def get_user(
     user_id: int, _: User = Depends(verified_user), service: MatchService = Depends(get_service)
 ) -> dict:

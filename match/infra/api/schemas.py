@@ -35,6 +35,12 @@ class UserSchema(BaseModel):
     is_verified: bool
 
 
+class PublicUserSchema(BaseModel):
+    id: int
+    user_type: UserType
+    first_name: str
+
+
 class TokenSchema(BaseModel):
     access_token: str
     refresh_token: str

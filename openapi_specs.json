@@ -223,6 +223,28 @@
         "title": "PublicTaskSchema",
         "type": "object"
       },
+      "PublicUserSchema": {
+        "properties": {
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "user_type": {
+            "$ref": "#/components/schemas/UserType"
+          }
+        },
+        "required": [
+          "id",
+          "user_type",
+          "first_name"
+        ],
+        "title": "PublicUserSchema",
+        "type": "object"
+      },
       "RefreshRequestSchema": {
         "properties": {
           "refresh_token": {
@@ -1585,7 +1607,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserSchema"
+                  "$ref": "#/components/schemas/PublicUserSchema"
                 }
               }
             },
