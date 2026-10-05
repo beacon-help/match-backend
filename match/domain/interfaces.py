@@ -14,9 +14,12 @@ class TaskFilter(TypedDict, total=False):
     location_radius: LocationRadius
 
 
-class MatchRepository(abc.ABC):
+class UserRepository(abc.ABC):
     @abc.abstractmethod
     def create_user(self, user_data: dict) -> User: ...
+
+    @abc.abstractmethod
+    def user_update(self, user: User) -> User: ...
 
     @abc.abstractmethod
     def get_user_by_id(self, user_id: int) -> User: ...
@@ -31,20 +34,16 @@ class MatchRepository(abc.ABC):
     def get_users_by_ids(self, user_ids: set[UserId]) -> dict[UserId, User]: ...
 
     @abc.abstractmethod
-    def user_update(self, user: User) -> User: ...
-
-    @abc.abstractmethod
     def count_users_by_type(self) -> dict[UserType, int]: ...
-
-    @abc.abstractmethod
-    def user_delete(self, user: User) -> None: ...
 
     @abc.abstractmethod
     def get_user_ids_deleted_before(self, deleted_before: datetime) -> set[UserId]: ...
 
     @abc.abstractmethod
-    def users_purge(self, user_ids: set[UserId]) -> list[ImageId]: ...
+    def users_purge(self, user_ids: set[UserId]) -> None: ...
 
+
+class TaskRepository(abc.ABC):
     @abc.abstractmethod
     def create_task(self, task: Task) -> Task: ...
 
@@ -65,6 +64,12 @@ class MatchRepository(abc.ABC):
 
     @abc.abstractmethod
     def images_delete(self, image_ids: list[ImageId]) -> None: ...
+
+    @abc.abstractmethod
+    def tasks_delete_owned_by(self, owner_id: UserId, deleted_at: datetime) -> None: ...
+
+    @abc.abstractmethod
+    def tasks_purge_owned_by(self, owner_ids: set[UserId]) -> list[ImageId]: ...
 
 
 class UnitOfWork(abc.ABC):

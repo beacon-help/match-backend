@@ -11,7 +11,7 @@ from sqlalchemy import Select, delete, orm, select, update
 from sqlalchemy.orm.session import Session as SQLAlchemySession
 
 from match.domain import exceptions
-from match.domain.interfaces import MatchRepository, TaskFilter
+from match.domain.interfaces import TaskFilter, TaskRepository, UserRepository
 from match.domain.task import (
     Category,
     ImageId,
@@ -58,34 +58,12 @@ def _filter_tasks_by_radius(tasks: list[Task], filters: TaskFilter) -> list[Task
     ]
 
 
-class InMemoryMatchRepository(MatchRepository):
+class InMemoryUserRepository(UserRepository):
     def __init__(self) -> None:
         self.users: dict[int, User] = {}
-        self.tasks: dict[int, Task] = {}
-        self.images: dict[str, int] = {}
-        self.deleted_task_ids: set[int] = set()
-        self._last_event_id = 0
 
     def _active_users(self) -> dict[int, User]:
         return {user_id: user for user_id, user in self.users.items() if user.deleted_at is None}
-
-    def _active_tasks(self) -> dict[int, Task]:
-        return {
-            task_id: task
-            for task_id, task in self.tasks.items()
-            if task_id not in self.deleted_task_ids
-        }
-
-    def _persist_new_images(self, task_id: int, task: Task) -> None:
-        for image_id in task.images:
-            if image_id not in self.images:
-                self.images[image_id] = task_id
-
-    def _persist_new_events(self, task: Task) -> None:
-        for event in task.events:
-            if event.id is None:
-                self._last_event_id += 1
-                event.id = self._last_event_id
 
     def create_user(self, user_data: dict) -> User:
         if any(user.email == user_data["email"] for user in self._active_users().values()):
@@ -99,8 +77,8 @@ class InMemoryMatchRepository(MatchRepository):
 
     def user_update(self, user: User) -> User:
         self.get_user_by_id(user.id)
-        self.users[user.id] = user
-        return deepcopy(self.users[user.id])
+        self.users[user.id] = deepcopy(user)
+        return deepcopy(user)
 
     def get_user_by_id(self, user_id: int) -> User:
         try:
@@ -127,13 +105,6 @@ class InMemoryMatchRepository(MatchRepository):
         users = self._active_users()
         return {user_id: deepcopy(users[user_id]) for user_id in user_ids if user_id in users}
 
-    def user_delete(self, user: User) -> None:
-        self.get_user_by_id(user.id)
-        self.users[user.id] = deepcopy(user)
-        self.deleted_task_ids.update(
-            task_id for task_id, task in self.tasks.items() if task.owner_id == user.id
-        )
-
     def get_user_ids_deleted_before(self, deleted_before: datetime) -> set[UserId]:
         return {
             UserId(user_id)
@@ -141,19 +112,35 @@ class InMemoryMatchRepository(MatchRepository):
             if user.deleted_at is not None and user.deleted_at < deleted_before
         }
 
-    def users_purge(self, user_ids: set[UserId]) -> list[ImageId]:
-        task_ids = {task_id for task_id, task in self.tasks.items() if task.owner_id in user_ids}
-        image_ids = [
-            ImageId(image_id) for image_id, task_id in self.images.items() if task_id in task_ids
-        ]
-        for image_id in image_ids:
-            del self.images[image_id]
-        for task_id in task_ids:
-            del self.tasks[task_id]
-        self.deleted_task_ids -= task_ids
+    def users_purge(self, user_ids: set[UserId]) -> None:
         for user_id in user_ids:
             del self.users[user_id]
-        return image_ids
+
+
+class InMemoryTaskRepository(TaskRepository):
+    def __init__(self) -> None:
+        self.tasks: dict[int, Task] = {}
+        self.images: dict[str, int] = {}
+        self.deleted_task_ids: set[int] = set()
+        self._last_event_id = 0
+
+    def _active_tasks(self) -> dict[int, Task]:
+        return {
+            task_id: task
+            for task_id, task in self.tasks.items()
+            if task_id not in self.deleted_task_ids
+        }
+
+    def _persist_new_images(self, task_id: int, task: Task) -> None:
+        for image_id in task.images:
+            if image_id not in self.images:
+                self.images[image_id] = task_id
+
+    def _persist_new_events(self, task: Task) -> None:
+        for event in task.events:
+            if event.id is None:
+                self._last_event_id += 1
+                event.id = self._last_event_id
 
     def create_task(self, task: Task) -> Task:
         task_id = 1
@@ -203,8 +190,25 @@ class InMemoryMatchRepository(MatchRepository):
         for image_id in image_ids:
             self.images.pop(image_id, None)
 
+    def tasks_delete_owned_by(self, owner_id: UserId, deleted_at: datetime) -> None:
+        self.deleted_task_ids.update(
+            task_id for task_id, task in self.tasks.items() if task.owner_id == owner_id
+        )
 
-class SQLiteRepository(MatchRepository):
+    def tasks_purge_owned_by(self, owner_ids: set[UserId]) -> list[ImageId]:
+        task_ids = {task_id for task_id, task in self.tasks.items() if task.owner_id in owner_ids}
+        image_ids = [
+            ImageId(image_id) for image_id, task_id in self.images.items() if task_id in task_ids
+        ]
+        for image_id in image_ids:
+            del self.images[image_id]
+        for task_id in task_ids:
+            del self.tasks[task_id]
+        self.deleted_task_ids -= task_ids
+        return image_ids
+
+
+class SQLiteUserRepository(UserRepository):
     def __init__(self, session: SQLAlchemySession) -> None:
         self.session = session
 
@@ -266,6 +270,7 @@ class SQLiteRepository(MatchRepository):
         db_obj.is_verified = user.is_verified
         db_obj.verification_code = user.verification_code
         db_obj.password_hash = user.password_hash
+        db_obj.deleted_at = user.deleted_at
 
         self.session.flush()
         return self._user_to_domain(db_obj)
@@ -305,34 +310,18 @@ class SQLiteRepository(MatchRepository):
         )
         return dict(self.session.execute(statement).tuples().all())
 
-    def user_delete(self, user: User) -> None:
-        self._get_user_by_id(user.id).deleted_at = user.deleted_at
-        self.session.execute(
-            update(db_models.Task)
-            .where(db_models.Task.owner_id == user.id, db_models.Task.deleted_at.is_(None))
-            .values(deleted_at=user.deleted_at)
-        )
-        self.session.flush()
-
     def get_user_ids_deleted_before(self, deleted_before: datetime) -> set[UserId]:
         statement = select(db_models.User.id).where(db_models.User.deleted_at < deleted_before)
         return {UserId(user_id) for user_id in self.session.scalars(statement)}
 
-    def users_purge(self, user_ids: set[UserId]) -> list[ImageId]:
-        task_ids = select(db_models.Task.id).where(db_models.Task.owner_id.in_(user_ids))
-        image_ids = list(
-            self.session.scalars(
-                select(db_models.Image.id).where(db_models.Image.task_id.in_(task_ids))
-            )
-        )
-        self.session.execute(delete(db_models.Image).where(db_models.Image.task_id.in_(task_ids)))
-        self.session.execute(
-            delete(db_models.TaskEvent).where(db_models.TaskEvent.task_id.in_(task_ids))
-        )
-        self.session.execute(delete(db_models.Task).where(db_models.Task.owner_id.in_(user_ids)))
+    def users_purge(self, user_ids: set[UserId]) -> None:
         self.session.execute(delete(db_models.User).where(db_models.User.id.in_(user_ids)))
         self.session.flush()
-        return [ImageId(image_id) for image_id in image_ids]
+
+
+class SQLiteTaskRepository(TaskRepository):
+    def __init__(self, session: SQLAlchemySession) -> None:
+        self.session = session
 
     def _get_images_for_tasks(self, task_ids: list[int]) -> dict[int, list[ImageId]]:
         statement = select(db_models.Image).where(db_models.Image.task_id.in_(task_ids))
@@ -539,3 +528,26 @@ class SQLiteRepository(MatchRepository):
         for db_image in db_images:
             self.session.delete(db_image)
         self.session.flush()
+
+    def tasks_delete_owned_by(self, owner_id: UserId, deleted_at: datetime) -> None:
+        self.session.execute(
+            update(db_models.Task)
+            .where(db_models.Task.owner_id == owner_id, db_models.Task.deleted_at.is_(None))
+            .values(deleted_at=deleted_at)
+        )
+        self.session.flush()
+
+    def tasks_purge_owned_by(self, owner_ids: set[UserId]) -> list[ImageId]:
+        task_ids = select(db_models.Task.id).where(db_models.Task.owner_id.in_(owner_ids))
+        image_ids = list(
+            self.session.scalars(
+                select(db_models.Image.id).where(db_models.Image.task_id.in_(task_ids))
+            )
+        )
+        self.session.execute(delete(db_models.Image).where(db_models.Image.task_id.in_(task_ids)))
+        self.session.execute(
+            delete(db_models.TaskEvent).where(db_models.TaskEvent.task_id.in_(task_ids))
+        )
+        self.session.execute(delete(db_models.Task).where(db_models.Task.owner_id.in_(owner_ids)))
+        self.session.flush()
+        return [ImageId(image_id) for image_id in image_ids]

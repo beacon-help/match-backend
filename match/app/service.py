@@ -6,11 +6,12 @@ from match.app.exceptions import AuthenticationFailed, ImageNotFound, MatchServi
 from match.domain.exceptions import UserNotFound, UserVerificationCodeInvalid
 from match.domain.interfaces import (
     ImageRepository,
-    MatchRepository,
     MessageClient,
     PasswordHasher,
     TaskFilter,
+    TaskRepository,
     UnitOfWork,
+    UserRepository,
 )
 from match.domain.task import Category, ImageId, Location, Task, TaskStatus
 from match.domain.user import User, UserId, UserType, create_user_verification_message
@@ -21,7 +22,8 @@ VERIFICATION_URL = "localhost:8000/user/verify/"
 @dataclass
 class MatchService:
     user_messaging_client: MessageClient
-    repository: MatchRepository
+    user_repository: UserRepository
+    task_repository: TaskRepository
     image_repository: ImageRepository
     password_hasher: PasswordHasher
     unit_of_work: UnitOfWork
@@ -48,7 +50,7 @@ class MatchService:
             "properties": [getattr(property_, "value", property_) for property_ in properties],
             "password_hash": self.password_hasher.hash(password),
         }
-        user = self.repository.create_user(user_data=user_data)
+        user = self.user_repository.create_user(user_data=user_data)
         self.unit_of_work.commit()
         return user
 
@@ -67,7 +69,7 @@ class MatchService:
 
     def authenticate(self, email: str, password: str) -> User:
         try:
-            user = self.repository.get_user_by_email(email)
+            user = self.user_repository.get_user_by_email(email)
         except UserNotFound:
             raise AuthenticationFailed
         if user.password_hash is None or not self.password_hasher.verify(
@@ -88,25 +90,27 @@ class MatchService:
 
     def verify_user_with_code(self, verification_code: str) -> None:
         try:
-            user = self.repository.get_user_by_verification_code(verification_code)
+            user = self.user_repository.get_user_by_verification_code(verification_code)
         except UserNotFound:
             raise UserVerificationCodeInvalid
         user = user.verify(verification_code)
-        self.repository.user_update(user)
+        self.user_repository.user_update(user)
         self.unit_of_work.commit()
 
     def get_user_by_id(self, user_id: int) -> User:
-        return self.repository.get_user_by_id(user_id)
+        return self.user_repository.get_user_by_id(user_id)
 
     def delete_user(self, user_id: int) -> None:
         user = self.get_user_by_id(user_id)
-        user.delete()
-        self.repository.user_delete(user)
+        deleted_at = user.delete()
+        self.user_repository.user_update(user)
+        self.task_repository.tasks_delete_owned_by(user.id, deleted_at)
         self.unit_of_work.commit()
 
     def purge_deleted_users(self, deleted_before: datetime) -> int:
-        user_ids = self.repository.get_user_ids_deleted_before(deleted_before)
-        image_ids = self.repository.users_purge(user_ids)
+        user_ids = self.user_repository.get_user_ids_deleted_before(deleted_before)
+        image_ids = self.task_repository.tasks_purge_owned_by(user_ids)
+        self.user_repository.users_purge(user_ids)
         self.unit_of_work.commit()
         for image_id in image_ids:
             self.image_repository.delete(image_id)
@@ -141,18 +145,18 @@ class MatchService:
             category=category_enum,
             location=location,
         )
-        task = self.repository.create_task(task)
+        task = self.task_repository.create_task(task)
         self.unit_of_work.commit()
         return task
 
     def get_task_by_id(self, task_id: int) -> Task:
-        return self.repository.get_task_by_id(task_id)
+        return self.task_repository.get_task_by_id(task_id)
 
     def get_tasks(self, filters: TaskFilter | None = None) -> list[Task]:
-        return self.repository.get_tasks(filters=filters)
+        return self.task_repository.get_tasks(filters=filters)
 
     def get_users_referenced_by(self, tasks: Iterable[Task]) -> dict[UserId, User]:
-        return self.repository.get_users_by_ids(
+        return self.user_repository.get_users_by_ids(
             {user_id for task in tasks for user_id in task.participant_ids}
         )
 
@@ -160,7 +164,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         user = self.get_user_by_id(user_id)
         task.join(user, message)
-        task = self.repository.task_update(task)
+        task = self.task_repository.task_update(task)
         self.unit_of_work.commit()
         return task
 
@@ -168,7 +172,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.approve_helper(owner, helper_id=UserId(helper_id))
-        task = self.repository.task_update(task)
+        task = self.task_repository.task_update(task)
         self.unit_of_work.commit()
         return task
 
@@ -176,7 +180,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.reject_helper(owner, helper_id=UserId(helper_id))
-        task = self.repository.task_update(task)
+        task = self.task_repository.task_update(task)
         self.unit_of_work.commit()
         return task
 
@@ -184,7 +188,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         helper = self.get_user_by_id(helper_id)
         task.withdraw(helper)
-        task = self.repository.task_update(task)
+        task = self.task_repository.task_update(task)
         self.unit_of_work.commit()
         return task
 
@@ -222,12 +226,12 @@ class MatchService:
             category=category_enum,
             location=location,
         )
-        task = self.repository.task_update(task)
+        task = self.task_repository.task_update(task)
         self.unit_of_work.commit()
         return task
 
     def get_task_image(self, image_id: str) -> bytes:
-        if not self.repository.image_exists(ImageId(image_id)):
+        if not self.task_repository.image_exists(ImageId(image_id)):
             raise ImageNotFound
         return self.image_repository.read([image_id])[image_id]
 
@@ -237,7 +241,7 @@ class MatchService:
         task.validate_editable_by(owner)
         image_ids = [ImageId(self.image_repository.upload(image)) for image in images]
         task.add_images(owner, image_ids)
-        task = self.repository.task_update(task)
+        task = self.task_repository.task_update(task)
         self.unit_of_work.commit()
         return task
 
@@ -245,8 +249,8 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.remove_image(owner, ImageId(image_id))
-        task = self.repository.task_update(task)
-        self.repository.images_delete([ImageId(image_id)])
+        task = self.task_repository.task_update(task)
+        self.task_repository.images_delete([ImageId(image_id)])
         self.unit_of_work.commit()
         self.image_repository.delete(image_id)
         return task
@@ -255,7 +259,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.close(owner)
-        task = self.repository.task_update(task)
+        task = self.task_repository.task_update(task)
         self.unit_of_work.commit()
         return task
 
@@ -263,7 +267,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.report_succeeded(owner)
-        task = self.repository.task_update(task)
+        task = self.task_repository.task_update(task)
         self.unit_of_work.commit()
         return task
 
@@ -271,12 +275,12 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.report_failed(owner)
-        task = self.repository.task_update(task)
+        task = self.task_repository.task_update(task)
         self.unit_of_work.commit()
         return task
 
     def _get_task_stats(self) -> dict[str, int]:
-        counts = self.repository.count_tasks_by_status()
+        counts = self.task_repository.count_tasks_by_status()
         return {
             "total": sum(counts.values()),
             "successful": counts.get(TaskStatus.SUCCEEDED, 0),
@@ -284,7 +288,7 @@ class MatchService:
         }
 
     def _get_user_stats(self) -> dict[str, int]:
-        counts = self.repository.count_users_by_type()
+        counts = self.user_repository.count_users_by_type()
         return {
             "total_helpers": counts.get(UserType.VOLUNTEER, 0),
             "total_help_seekers": counts.get(UserType.HELP_SEEKER, 0),

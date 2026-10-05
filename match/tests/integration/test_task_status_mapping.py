@@ -4,7 +4,7 @@ from sqlalchemy import text
 from match.db import Session
 from match.domain.task import Category, Task, TaskEventType
 from match.domain.user import User, UserId, UserType
-from match.infra.repositories import SQLiteRepository
+from match.infra.repositories import SQLiteTaskRepository
 
 OWNER = User(
     id=UserId(1), user_type=UserType.HELP_SEEKER, first_name="O", last_name="O", email="o@x.com"
@@ -38,7 +38,7 @@ SCENARIOS = {
 @pytest.fixture
 def repository():
     session = Session()
-    yield SQLiteRepository(session)
+    yield SQLiteTaskRepository(session)
     session.execute(
         text("DELETE FROM task_events WHERE task_id IN (SELECT id FROM tasks WHERE owner_id = 1)")
     )

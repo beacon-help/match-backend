@@ -53,10 +53,11 @@ class User:
         self.is_verified = True
         return self
 
-    def delete(self) -> None:
+    def delete(self) -> datetime:
         if self.deleted_at is not None:
             raise UserAlreadyDeleted(f"User {self} is already deleted.")
         self.deleted_at = datetime.now(tz.utc)
+        return self.deleted_at
 
 
 def create_user_verification_message(user: User, verification_url: str) -> str:

@@ -4,7 +4,7 @@ from datetime import timezone as tz
 from match.domain.interfaces import UnitOfWork
 from match.domain.task import Category, Location, Task, TaskEvent, TaskEventType, TaskStatus
 from match.domain.user import User, UserId, UserType
-from match.infra.repositories import InMemoryMatchRepository
+from match.infra.repositories import InMemoryTaskRepository, InMemoryUserRepository
 
 SEED_TIME = datetime(2024, 11, 14, tzinfo=tz.utc)
 OWNER_ID = UserId(100)
@@ -70,9 +70,14 @@ def _seed_task(task_id: int, status: TaskStatus, event_types: list[TaskEventType
     )
 
 
-def seeded_in_memory_repository() -> InMemoryMatchRepository:
-    repository = InMemoryMatchRepository()
+def seeded_user_repository() -> InMemoryUserRepository:
+    repository = InMemoryUserRepository()
     repository.users.update({user.id: user for user in _seed_users()})
+    return repository
+
+
+def seeded_task_repository() -> InMemoryTaskRepository:
+    repository = InMemoryTaskRepository()
     for task_id, (status, event_types) in SEED_TASKS.items():
         task = _seed_task(task_id, status, event_types)
         repository._persist_new_events(task)

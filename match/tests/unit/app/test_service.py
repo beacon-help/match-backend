@@ -9,15 +9,16 @@ from match.domain.exceptions import RepositoryException, TaskNotFound, UserNotFo
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
 from match.infra.password_hasher import PwdlibPasswordHasher
-from match.infra.repositories import InMemoryMatchRepository
-from match.tests.fakes import FakeUnitOfWork, seeded_in_memory_repository
+from match.infra.repositories import InMemoryTaskRepository, InMemoryUserRepository
+from match.tests.fakes import FakeUnitOfWork, seeded_task_repository, seeded_user_repository
 
 
 @pytest.fixture
 def service(tmp_path, config):
     return MatchService(
         user_messaging_client=FakeMessageClient(config=config),
-        repository=seeded_in_memory_repository(),
+        user_repository=seeded_user_repository(),
+        task_repository=seeded_task_repository(),
         image_repository=LocalImageRepository(storage_dir=str(tmp_path / "imgs")),
         password_hasher=PwdlibPasswordHasher(),
         unit_of_work=FakeUnitOfWork(),
@@ -32,7 +33,7 @@ def test_task_remove_image_keeps_file_when_persisting_fails(service, monkeypatch
     def failing_task_update(task):
         raise RepositoryException("boom")
 
-    monkeypatch.setattr(service.repository, "task_update", failing_task_update)
+    monkeypatch.setattr(service.task_repository, "task_update", failing_task_update)
 
     with pytest.raises(RepositoryException):
         service.task_remove_image(task_id=100, owner_id=100, image_id=image_id)
@@ -48,7 +49,8 @@ def test_get_stats(service):
 
 
 def test_get_stats_empty(service):
-    service.repository = InMemoryMatchRepository()
+    service.user_repository = InMemoryUserRepository()
+    service.task_repository = InMemoryTaskRepository()
 
     task_stats, user_stats = service.get_stats()
 
@@ -83,14 +85,14 @@ def test_purge_deleted_users_respects_cutoff(service):
     image_path = service.image_repository.storage_dir / task.images[0]
     service.delete_user(100)
     service.delete_user(101)
-    service.repository.users[100].deleted_at = datetime.now(tz.utc) - timedelta(days=31)
+    service.user_repository.users[100].deleted_at = datetime.now(tz.utc) - timedelta(days=31)
 
     purged = service.purge_deleted_users(datetime.now(tz.utc) - timedelta(days=30))
 
     assert purged == 1
-    assert 100 not in service.repository.users
-    assert service.repository.users[101].deleted_at is not None
-    assert all(task.owner_id != 100 for task in service.repository.tasks.values())
+    assert 100 not in service.user_repository.users
+    assert service.user_repository.users[101].deleted_at is not None
+    assert all(task.owner_id != 100 for task in service.task_repository.tasks.values())
     assert not image_path.exists()
 
 

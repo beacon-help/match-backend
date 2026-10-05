@@ -7,7 +7,7 @@ from match.db import get_session
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
 from match.infra.password_hasher import PwdlibPasswordHasher
-from match.infra.repositories import SQLiteRepository
+from match.infra.repositories import SQLiteTaskRepository, SQLiteUserRepository
 from match.infra.unit_of_work import SqlAlchemyUnitOfWork
 
 config = get_config()
@@ -19,7 +19,8 @@ password_hasher = PwdlibPasswordHasher()
 def build_service(session: SQLAlchemySession) -> MatchService:
     return MatchService(
         user_messaging_client=message_client,
-        repository=SQLiteRepository(session=session),
+        user_repository=SQLiteUserRepository(session),
+        task_repository=SQLiteTaskRepository(session),
         image_repository=image_repository,
         password_hasher=password_hasher,
         unit_of_work=SqlAlchemyUnitOfWork(session),

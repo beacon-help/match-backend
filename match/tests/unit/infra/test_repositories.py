@@ -3,13 +3,13 @@ import pytest
 from match.domain.exceptions import EmailAlreadyRegistered
 from match.domain.task import TaskStatus
 from match.domain.user import User, UserType
-from match.infra.repositories import InMemoryMatchRepository
-from match.tests.fakes import seeded_in_memory_repository
+from match.infra.repositories import InMemoryUserRepository
+from match.tests.fakes import seeded_task_repository, seeded_user_repository
 
 
 @pytest.fixture(scope="function")
 def in_memory_user_repository():
-    return InMemoryMatchRepository()
+    return InMemoryUserRepository()
 
 
 def test_create_user(in_memory_user_repository):
@@ -39,7 +39,7 @@ def test_create_user(in_memory_user_repository):
 
 
 def test_get_tasks_can_filter_by_status():
-    repository = seeded_in_memory_repository()
+    repository = seeded_task_repository()
 
     tasks = repository.get_tasks({"status": TaskStatus.PENDING})
 
@@ -48,7 +48,7 @@ def test_get_tasks_can_filter_by_status():
 
 
 def test_get_tasks_can_filter_by_null_helper_id():
-    repository = seeded_in_memory_repository()
+    repository = seeded_task_repository()
 
     tasks = repository.get_tasks({"helper_id": None})
 
@@ -57,13 +57,13 @@ def test_get_tasks_can_filter_by_null_helper_id():
 
 
 def test_count_tasks_by_status():
-    repository = seeded_in_memory_repository()
+    repository = seeded_task_repository()
 
     assert repository.count_tasks_by_status() == {status: 1 for status in TaskStatus}
 
 
 def test_count_users_by_type():
-    repository = seeded_in_memory_repository()
+    repository = seeded_user_repository()
 
     assert repository.count_users_by_type() == {UserType.VOLUNTEER: 2, UserType.HELP_SEEKER: 2}
 
