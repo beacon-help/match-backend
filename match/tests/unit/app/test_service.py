@@ -6,7 +6,6 @@ import pytest
 from match.app.exceptions import ImageNotFound
 from match.app.service import MatchService
 from match.domain.exceptions import RepositoryException, TaskNotFound, UserNotFound
-from match.domain.task import TaskEventType
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
 from match.infra.password_hasher import PwdlibPasswordHasher
@@ -19,9 +18,7 @@ def service(tmp_path, config):
     return MatchService(
         user_messaging_client=FakeMessageClient(config=config),
         repository=seeded_in_memory_repository(),
-        image_repository=LocalImageRepository(
-            storage_dir=str(tmp_path / "imgs"), backend_host=config.BACKEND_HOST
-        ),
+        image_repository=LocalImageRepository(storage_dir=str(tmp_path / "imgs")),
         password_hasher=PwdlibPasswordHasher(),
         _fe_host=config.FE_HOST,
     )
@@ -72,16 +69,12 @@ def test_delete_user_hides_user_and_owned_tasks(service):
     )
 
 
-def test_task_response_shows_deleted_helper_as_placeholder(service):
+def test_users_referenced_by_task_skip_deleted_users(service):
     service.delete_user(101)
 
-    response = service.get_task_response(102)
+    users = service.get_users_referenced_by([service.get_task_by_id(102)])
 
-    deleted_user = {"id": 101, "first_name": "Deleted user"}
-    offered = next(event for event in response["events"] if event["type"] == TaskEventType.OFFERED)
-    assert response["owner"] == {"id": 100, "first_name": "John"}
-    assert response["helper"] == deleted_user
-    assert offered["actor"] == deleted_user
+    assert set(users) == {100}
 
 
 def test_purge_deleted_users_respects_cutoff(service):

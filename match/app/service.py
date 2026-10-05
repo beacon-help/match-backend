@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Iterable
 
@@ -15,7 +15,6 @@ from match.domain.task import Category, ImageId, Location, Task, TaskStatus
 from match.domain.user import User, UserId, UserType, create_user_verification_message
 
 VERIFICATION_URL = "localhost:8000/user/verify/"
-DELETED_USER_FIRST_NAME = "Deleted user"
 
 
 @dataclass
@@ -144,82 +143,10 @@ class MatchService:
     def get_tasks(self, filters: TaskFilter | None = None) -> list[Task]:
         return self.repository.get_tasks(filters=filters)
 
-    @staticmethod
-    def _user_to_summary(
-        user_id: UserId | None, users_by_id: dict[UserId, User]
-    ) -> dict[str, Any] | None:
-        if user_id is None:
-            return None
-        user = users_by_id.get(user_id)
-        first_name = user.first_name if user is not None else DELETED_USER_FIRST_NAME
-        return {"id": user_id, "first_name": first_name}
-
-    def _task_to_api_response(self, task: Task, users_by_id: dict[UserId, User]) -> dict[str, Any]:
-        task_dict = asdict(task)
-        task_dict.pop("owner_id")
-        task_dict.pop("helper_id")
-        task_dict["owner"] = self._user_to_summary(task.owner_id, users_by_id)
-        task_dict["helper"] = self._user_to_summary(task.helper_id, users_by_id)
-
-        task_dict["images"] = [
-            {"id": image_id, "path": self.image_repository.path(image_id)}
-            for image_id in task_dict.pop("images")
-        ]
-
-        task_dict["events"] = [
-            {
-                "id": event.id,
-                "type": event.type,
-                "actor": self._user_to_summary(event.actor_id, users_by_id),
-                "helper": self._user_to_summary(event.helper_id, users_by_id),
-                "message": event.message,
-                "occurred_at": event.occurred_at,
-            }
-            for event in task.events
-        ]
-
-        return task_dict
-
-    @staticmethod
-    def _task_user_ids(task: Task) -> set[UserId]:
-        user_ids = {task.owner_id}
-        if task.helper_id is not None:
-            user_ids.add(task.helper_id)
-        for event in task.events:
-            user_ids.add(event.actor_id)
-            if event.helper_id is not None:
-                user_ids.add(event.helper_id)
-        return user_ids
-
-    # TODO: this goes to infra
-    def format_task_response(self, task: Task) -> dict[str, Any]:
-        users_by_id = self.repository.get_users_by_ids(self._task_user_ids(task))
-        return self._task_to_api_response(task, users_by_id)
-
-    # TODO: this is bad
-    def get_task_response(self, task_id: int) -> dict[str, Any]:
-        task = self.get_task_by_id(task_id)
-        return self.format_task_response(task)
-
-    def get_tasks_response(
-        self,
-        filters: TaskFilter | None = None,
-    ) -> list[dict[str, Any]]:
-        tasks = self.get_tasks(filters=filters)
-        user_ids = {user_id for task in tasks for user_id in self._task_user_ids(task)}
-        users_by_id = self.repository.get_users_by_ids(user_ids)
-        return [self._task_to_api_response(task, users_by_id) for task in tasks]
-
-    def get_task_locations(
-        self,
-        filters: TaskFilter | None = None,
-    ) -> list[dict[str, Any]]:
-        tasks = self.get_tasks(filters=filters)
-        return [
-            {"id": task.id, "location": task.location}
-            for task in tasks
-            if task.location is not None
-        ]
+    def get_users_referenced_by(self, tasks: Iterable[Task]) -> dict[UserId, User]:
+        return self.repository.get_users_by_ids(
+            {user_id for task in tasks for user_id in task.participant_ids}
+        )
 
     def task_join(self, task_id: int, user_id: int, message: str) -> Task:
         task = self.get_task_by_id(task_id)

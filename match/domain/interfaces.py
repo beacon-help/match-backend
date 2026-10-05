@@ -89,6 +89,3 @@ class ImageRepository(abc.ABC):
 
     @abc.abstractmethod
     def delete(self, image_id: str) -> None: ...
-
-    @abc.abstractmethod
-    def path(self, image_id: str) -> str: ...
