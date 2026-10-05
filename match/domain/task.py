@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from datetime import timezone as tz
@@ -8,6 +9,8 @@ from match.domain.exceptions import DomainException, InvalidLocation, InvalidTas
 from match.domain.user import User, UserId
 
 ImageId = NewType("ImageId", str)
+
+EARTH_RADIUS_KM = 6371.0088
 
 
 class TaskStatus(StrEnum):
@@ -90,6 +93,16 @@ class LocationRadius:
 
     def __post_init__(self) -> None:
         _validate_coordinates(self.lat, self.lon, self.radius_km)
+
+    def contains(self, location: Location) -> bool:
+        lat1, lat2 = math.radians(self.lat), math.radians(location.lat)
+        delta_lat = lat2 - lat1
+        delta_lon = math.radians(location.lon - self.lon)
+        haversine = (
+            math.sin(delta_lat / 2) ** 2
+            + math.cos(lat1) * math.cos(lat2) * math.sin(delta_lon / 2) ** 2
+        )
+        return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(haversine)) <= self.radius_km
 
 
 @dataclass

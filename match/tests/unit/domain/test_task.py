@@ -261,3 +261,10 @@ def test_location_is_immutable():
 
     with pytest.raises(FrozenInstanceError):
         location.address = "Elsewhere"
+
+
+def test_location_radius_contains_locations_within_its_radius():
+    valencia = LocationRadius(lat=39.4699, lon=-0.3763, radius_km=10)
+
+    assert valencia.contains(Location(lat=39.4550, lon=-0.3840, address="Ruzafa"))
+    assert not valencia.contains(Location(lat=40.4168, lon=-3.7038, address="Madrid"))

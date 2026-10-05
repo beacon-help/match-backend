@@ -1,5 +1,4 @@
 import json
-import math
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from copy import deepcopy
@@ -24,21 +23,6 @@ from match.domain.task import (
 from match.domain.user import User, UserId, UserType
 from match.infra import db_models
 
-EARTH_RADIUS_KM = 6371.0088
-
-
-def _distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    lat1_rad = math.radians(lat1)
-    lat2_rad = math.radians(lat2)
-    delta_lat = lat2_rad - lat1_rad
-    delta_lon = math.radians(lon2 - lon1)
-
-    haversine = (
-        math.sin(delta_lat / 2) ** 2
-        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
-    )
-    return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(haversine))
-
 
 def _filter_tasks_by_radius(tasks: list[Task], filters: TaskFilter) -> list[Task]:
     location_radius = filters.get("location_radius")
@@ -47,14 +31,7 @@ def _filter_tasks_by_radius(tasks: list[Task], filters: TaskFilter) -> list[Task
     return [
         task
         for task in tasks
-        if task.location is not None
-        and _distance_km(
-            location_radius.lat,
-            location_radius.lon,
-            task.location.lat,
-            task.location.lon,
-        )
-        <= location_radius.radius_km
+        if task.location is not None and location_radius.contains(task.location)
     ]
 
 
