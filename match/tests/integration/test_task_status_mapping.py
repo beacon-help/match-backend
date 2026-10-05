@@ -15,7 +15,7 @@ HELPER = User(
 
 
 def _join(task):
-    task.join(HELPER.id, "I can help")
+    task.join(HELPER, "I can help")
 
 
 def _approve(task):
