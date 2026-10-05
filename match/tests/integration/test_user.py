@@ -242,7 +242,6 @@ class TestUserTaskInteractions:
         assert task["owner"] == {"id": user_1_id, "first_name": "John"}
         assert task["helper"] is None
 
-    @pytest.mark.skip()
     def test_multiple_users_cannot_join_same_task(self, test_client, populate_db):
         session = populate_db
         task_id = 123
@@ -269,5 +268,7 @@ class TestUserTaskInteractions:
             headers=build_headers(user_3_id),
         )
 
-        assert second_join_reponse.status_code == HTTPStatus.OK
-        # TODO
+        assert second_join_reponse.status_code == HTTPStatus.FORBIDDEN
+        task = test_client.get(f"/task/{task_id}", headers=build_headers(user_1_id)).json()
+        assert task["status"] == "pending"
+        assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}

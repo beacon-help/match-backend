@@ -208,11 +208,10 @@ def manage_task(
                 task = service.task_report_success(task_id, owner_id=user.id)
             case TaskAction.REPORT_FAILURE:
                 task = service.task_report_failed(task_id, owner_id=user.id)
-    except PermissionDenied as e:
-        raise HTTPException(
-            status_code=HTTPStatus.FORBIDDEN,
-            detail=f"Permission denied for user {user}.{str(e)}",
-        )
+    except TaskNotFound:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
+    except InvalidTaskAction as e:
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
 
     return service.format_task_response(task)
 

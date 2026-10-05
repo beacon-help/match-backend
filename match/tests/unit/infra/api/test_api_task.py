@@ -613,3 +613,23 @@ def test_deleted_owner_task_image_answers_like_unknown_image(test_client):
 
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == test_client.get("/task/images/does-not-exist").json()
+
+
+def test_manage_task_not_found(test_client):
+    response = test_client.put(
+        "/task/999999/manage",
+        params={"action": "close"},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_manage_task_rejects_invalid_transition(test_client):
+    response = test_client.put(
+        "/task/100/manage",
+        params={"action": "approve", "helper_id": 101},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
