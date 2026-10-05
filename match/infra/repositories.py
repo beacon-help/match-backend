@@ -53,10 +53,12 @@ class InMemoryMatchRepository(MatchRepository):
             if task_id not in self.deleted_task_ids
         }
 
-    def _persist_new_images(self, task_id: int, task: Task) -> None:
+    def _sync_images(self, task_id: int, task: Task) -> None:
+        for image_id in [i for i, owner in self.images.items() if owner == task_id]:
+            if image_id not in task.images:
+                del self.images[image_id]
         for image_id in task.images:
-            if image_id not in self.images:
-                self.images[image_id] = task_id
+            self.images.setdefault(image_id, task_id)
 
     def _persist_new_events(self, task: Task) -> None:
         for event in task.events:
@@ -132,14 +134,14 @@ class InMemoryMatchRepository(MatchRepository):
             del self.users[user_id]
         return image_ids
 
-    def create_task(self, task: Task) -> Task:
-        task_id = 1
-        while task_id in self.tasks:
-            task_id += 1
-        task.id = task_id
-        self._persist_new_images(task_id, task)
+    def save_task(self, task: Task) -> Task:
+        if task.id is None:
+            task.id = max(self.tasks, default=0) + 1
+        else:
+            self.get_task_by_id(task.id)
+        self._sync_images(task.id, task)
         self._persist_new_events(task)
-        self.tasks[task_id] = deepcopy(task)
+        self.tasks[task.id] = deepcopy(task)
         return deepcopy(task)
 
     def get_task_by_id(self, task_id: int) -> Task:
@@ -161,24 +163,11 @@ class InMemoryMatchRepository(MatchRepository):
             tasks = [task for task in tasks if task.helper_id == filters["helper_id"]]
         return _filter_tasks_by_radius(tasks, filters)
 
-    def task_update(self, task: Task) -> Task:
-        if task.id is None:
-            raise exceptions.RepositoryException("Cannot update task without id.")
-        self.get_task_by_id(task.id)
-        self._persist_new_images(task.id, task)
-        self._persist_new_events(task)
-        self.tasks[task.id] = task
-        return deepcopy(task)
-
     def count_tasks_by_status(self) -> dict[TaskStatus, int]:
         return dict(Counter(task.status for task in self._active_tasks().values()))
 
     def image_exists(self, image_id: ImageId) -> bool:
         return self.images.get(image_id) in self._active_tasks()
-
-    def images_delete(self, image_ids: list[ImageId]) -> None:
-        for image_id in image_ids:
-            self.images.pop(image_id, None)
 
 
 class SQLiteRepository(MatchRepository):
@@ -318,15 +307,18 @@ class SQLiteRepository(MatchRepository):
             images_by_task_id[obj.task_id].append(ImageId(obj.id))
         return images_by_task_id
 
-    def _persist_new_images(self, task_id: int, task: Task) -> None:
-        existing_ids = set(
+    def _sync_images(self, task_id: int, task: Task) -> None:
+        stored_ids = set(
             self.session.scalars(select(db_models.Image.id).filter_by(task_id=task_id))
         )
-        new_ids = [image_id for image_id in task.images if image_id not in existing_ids]
-        if not new_ids:
-            return
-        db_images = [db_models.Image(id=image_id, task_id=task_id) for image_id in new_ids]
-        self.session.add_all(db_images)
+        removed_ids = stored_ids - set(task.images)
+        if removed_ids:
+            self.session.execute(delete(db_models.Image).where(db_models.Image.id.in_(removed_ids)))
+        self.session.add_all(
+            db_models.Image(id=image_id, task_id=task_id)
+            for image_id in task.images
+            if image_id not in stored_ids
+        )
         self.session.flush()
 
     def _get_events_for_tasks(self, task_ids: list[int]) -> dict[int, list[TaskEvent]]:
@@ -415,25 +407,24 @@ class SQLiteRepository(MatchRepository):
         except sqlalchemy.orm.exc.NoResultFound:
             raise exceptions.TaskNotFound
 
-    def create_task(self, task: Task) -> Task:
-        db_model = db_models.Task(
-            title=task.title,
-            description=task.description,
-            owner_id=task.owner_id,
-            category=task.category.value,
-            helper_id=task.helper_id,
-            updated_at=task.updated_at,
-            created_at=task.created_at,
-            location_lat=task.location.lat if task.location else None,
-            location_lon=task.location.lon if task.location else None,
-            location_address=task.location.address if task.location else None,
-        )
-        self.session.add(db_model)
+    def save_task(self, task: Task) -> Task:
+        if task.id is None:
+            db_obj = db_models.Task(owner_id=task.owner_id, created_at=task.created_at)
+            self.session.add(db_obj)
+        else:
+            db_obj = self._get_task_by_id(task.id)
+        db_obj.title = task.title
+        db_obj.description = task.description
+        db_obj.helper_id = task.helper_id
+        db_obj.category = task.category.value
+        db_obj.location_lat = task.location.lat if task.location else None
+        db_obj.location_lon = task.location.lon if task.location else None
+        db_obj.location_address = task.location.address if task.location else None
+        db_obj.updated_at = task.updated_at
         self.session.flush()
-        self._persist_new_images(db_model.id, task)
-        self._persist_new_events(db_model.id, task)
-        self.session.flush()
-        return self.get_task_by_id(db_model.id)
+        self._sync_images(db_obj.id, task)
+        self._persist_new_events(db_obj.id, task)
+        return self.get_task_by_id(db_obj.id)
 
     @staticmethod
     def _select_tasks_with_status() -> Select[tuple[db_models.Task, str]]:
@@ -468,25 +459,6 @@ class SQLiteRepository(MatchRepository):
         tasks = self._tasks_to_domain(self.session.execute(statement).tuples().all())
         return _filter_tasks_by_radius(tasks, filters)
 
-    def task_update(self, task: Task) -> Task:
-        if not task.id:
-            raise exceptions.RepositoryException("Cannot update task without id.")
-        db_obj = self._get_task_by_id(task.id)
-
-        db_obj.title = task.title
-        db_obj.description = task.description
-        db_obj.helper_id = task.helper_id
-        db_obj.category = task.category.value
-        db_obj.location_lat = task.location.lat if task.location else None
-        db_obj.location_lon = task.location.lon if task.location else None
-        db_obj.location_address = task.location.address if task.location else None
-        db_obj.updated_at = task.updated_at
-
-        self._persist_new_images(task.id, task)
-        self._persist_new_events(task.id, task)
-        self.session.flush()
-        return task
-
     def count_tasks_by_status(self) -> dict[TaskStatus, int]:
         view = db_models.tasks_with_status
         statement = (
@@ -507,12 +479,3 @@ class SQLiteRepository(MatchRepository):
             .where(db_models.Image.id == image_id, db_models.Task.deleted_at.is_(None))
         )
         return self.session.scalar(statement) is not None
-
-    def images_delete(self, image_ids: list[ImageId]) -> None:
-        if not image_ids:
-            return
-        statement = select(db_models.Image).where(db_models.Image.id.in_(image_ids))
-        db_images = self.session.scalars(statement).all()
-        for db_image in db_images:
-            self.session.delete(db_image)
-        self.session.flush()
