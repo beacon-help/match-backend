@@ -67,6 +67,14 @@ class MatchRepository(abc.ABC):
     def images_delete(self, image_ids: list[ImageId]) -> None: ...
 
 
+class PasswordHasher(abc.ABC):
+    @abc.abstractmethod
+    def hash(self, password: str) -> str: ...
+
+    @abc.abstractmethod
+    def verify(self, password: str, password_hash: str) -> bool: ...
+
+
 class MessageClient(abc.ABC):
     @abc.abstractmethod
     def send_message(self, message: str, user: User) -> None: ...

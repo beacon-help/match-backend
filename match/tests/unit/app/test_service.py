@@ -9,6 +9,7 @@ from match.domain.exceptions import RepositoryException, TaskNotFound, UserNotFo
 from match.domain.task import TaskEventType
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
+from match.infra.password_hasher import PwdlibPasswordHasher
 from match.infra.repositories import InMemoryMatchRepository
 from match.tests.fakes import seeded_in_memory_repository
 
@@ -21,6 +22,7 @@ def service(tmp_path, config):
         image_repository=LocalImageRepository(
             storage_dir=str(tmp_path / "imgs"), backend_host=config.BACKEND_HOST
         ),
+        password_hasher=PwdlibPasswordHasher(),
         _fe_host=config.FE_HOST,
     )
 
