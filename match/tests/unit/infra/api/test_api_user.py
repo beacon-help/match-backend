@@ -147,9 +147,9 @@ def test_create_helpseeker_user_rejects_properties(test_client):
         pytest.param(
             "/user/signup/volunteer",
             {
-                "first_name": "John",
-                "last_name": "Johnson",
-                "email": "john@johnson.com",
+                "first_name": "Vera",
+                "last_name": "Volunteer",
+                "email": "vera@example.com",
                 "password": "s3cr3t-password",
                 "properties": ["has_car"],
             },
@@ -161,6 +161,23 @@ def test_create_user_happy_path(test_client, endpoint, payload):
     response = test_client.post(endpoint, data=json.dumps(payload))
 
     assert response.status_code == HTTPStatus.CREATED
+
+
+@pytest.mark.parametrize("endpoint", ("/user/signup/helpseeker", "/user/signup/volunteer"))
+def test_create_user_with_registered_email_conflicts(test_client, endpoint):
+    payload = {
+        "first_name": "Someone",
+        "last_name": "Else",
+        "email": "john@johnson.com",
+        "password": "s3cr3t-password",
+    }
+    if endpoint.endswith("volunteer"):
+        payload["properties"] = []
+
+    response = test_client.post(endpoint, json=payload)
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert "John" not in response.text
 
 
 def test_verify_user_happy_path(test_client):

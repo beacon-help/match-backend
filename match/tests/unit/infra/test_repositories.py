@@ -1,5 +1,6 @@
 import pytest
 
+from match.domain.exceptions import EmailAlreadyRegistered
 from match.domain.task import TaskStatus
 from match.domain.user import User, UserType
 from match.infra.repositories import InMemoryMatchRepository
@@ -65,3 +66,16 @@ def test_count_users_by_type():
     repository = seeded_in_memory_repository()
 
     assert repository.count_users_by_type() == {UserType.VOLUNTEER: 2, UserType.HELP_SEEKER: 2}
+
+
+def test_create_user_rejects_registered_email(in_memory_user_repository):
+    user_data = {
+        "user_type": UserType.HELP_SEEKER,
+        "first_name": "Adam",
+        "last_name": "Ondra",
+        "email": "adam@example.com",
+    }
+    in_memory_user_repository.create_user(user_data)
+
+    with pytest.raises(EmailAlreadyRegistered):
+        in_memory_user_repository.create_user(user_data)

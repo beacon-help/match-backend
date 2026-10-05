@@ -89,6 +89,8 @@ class InMemoryMatchRepository(MatchRepository):
                 event.id = self._last_event_id
 
     def create_user(self, user_data: dict) -> User:
+        if any(user.email == user_data["email"] for user in self._active_users().values()):
+            raise exceptions.EmailAlreadyRegistered
         user_id = 1
         while user_id in self.users:
             user_id += 1
@@ -239,7 +241,7 @@ class SQLiteRepository(MatchRepository):
             self._select_users().filter_by(email=user.email)
         ).first()
         if existing_user is not None:
-            return self._user_to_domain(existing_user)
+            raise exceptions.EmailAlreadyRegistered
         db_model = db_models.User(
             user_type=user.user_type,
             first_name=user.first_name,

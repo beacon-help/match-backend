@@ -5,11 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from match.app.service import MatchService
 from match.bootstrap import get_service
-from match.domain.exceptions import UserNotFound, UserVerificationError
+from match.domain.exceptions import EmailAlreadyRegistered, UserNotFound, UserVerificationError
 from match.domain.user import User, UserType
 from match.infra.api.auth import authenticated_user, verified_user
 from match.infra.api.schemas import (
     HelpseekerCreationRequestSchema,
+    UserCreationBaseSchema,
     UserSchema,
     VolunteerCreationRequestSchema,
 )
@@ -42,14 +43,21 @@ def get_user(
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
 
 
+def _sign_up(service: MatchService, user_type: UserType, params: UserCreationBaseSchema) -> dict:
+    try:
+        user = service.create_user(**params.model_dump(), user_type=user_type)
+    except EmailAlreadyRegistered:
+        raise HTTPException(status_code=HTTPStatus.CONFLICT, detail="Email already registered.")
+    service.send_verification_request(user)
+    return asdict(user)
+
+
 @router.post("/signup/helpseeker", response_model=UserSchema, status_code=HTTPStatus.CREATED)
 def create_helpseeker_user(
     user_creation_params: HelpseekerCreationRequestSchema,
     service: MatchService = Depends(get_service),
 ) -> dict:
-    user = service.create_user(**user_creation_params.model_dump(), user_type=UserType.HELP_SEEKER)
-    service.send_verification_request(user)
-    return asdict(user)
+    return _sign_up(service, UserType.HELP_SEEKER, user_creation_params)
 
 
 @router.post("/signup/volunteer", response_model=UserSchema, status_code=HTTPStatus.CREATED)
@@ -57,9 +65,7 @@ def create_volunteer_user(
     user_creation_params: VolunteerCreationRequestSchema,
     service: MatchService = Depends(get_service),
 ) -> dict:
-    user = service.create_user(**user_creation_params.model_dump(), user_type=UserType.VOLUNTEER)
-    service.send_verification_request(user)
-    return asdict(user)
+    return _sign_up(service, UserType.VOLUNTEER, user_creation_params)
 
 
 @router.put("/verify/{verification_code}")
