@@ -690,3 +690,28 @@ def test_helper_withdraws_from_task(test_client):
     assert task["helper"] is None
     assert task["events"][-1]["type"] == "withdrawn"
     assert task["events"][-1]["actor"] == adam
+
+
+def test_create_task_with_blank_address_is_rejected(test_client):
+    response = test_client.post(
+        "/task",
+        json={
+            "title": "title",
+            "description": "description",
+            "category": "other",
+            "location": {"lat": 40.7128, "lon": -74.0060, "address": "  "},
+        },
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_edit_task_with_blank_address_is_rejected(test_client):
+    response = test_client.put(
+        "/task/100/edit",
+        json={**UPDATE_PAYLOAD, "location": {"lat": 1.0, "lon": 1.0, "address": ""}},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
