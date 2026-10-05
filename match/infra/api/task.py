@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from match.app.exceptions import ImageNotFound, MatchServiceException, PermissionDenied
 from match.app.service import MatchService
 from match.bootstrap import get_service
+from match.config import get_config
 from match.domain.exceptions import (
     DomainException,
     InvalidLocation,
@@ -16,6 +17,7 @@ from match.domain.interfaces import TaskFilter
 from match.domain.task import Category, LocationRadius, Task, TaskStatus
 from match.domain.user import User
 from match.infra.api.auth import get_user_id, verified_user
+from match.infra.api.presenters import TaskPresenter
 from match.infra.api.schemas import (
     PublicTaskSchema,
     TaskAction,
@@ -26,6 +28,18 @@ from match.infra.api.schemas import (
 )
 
 router = APIRouter()
+
+
+def get_task_presenter() -> TaskPresenter:
+    return TaskPresenter(get_config().BACKEND_HOST)
+
+
+def _task_response(task: Task, service: MatchService, presenter: TaskPresenter) -> dict:
+    return presenter.task(task, service.get_users_referenced_by([task]))
+
+
+def _tasks_response(tasks: list[Task], service: MatchService, presenter: TaskPresenter) -> list:
+    return presenter.tasks(tasks, service.get_users_referenced_by(tasks))
 
 
 def _task_filters_from_request(request: Request) -> TaskFilter:
@@ -74,6 +88,7 @@ def create_task(
     task_creation_params: TaskCreationRequestSchema,
     user: User = Depends(verified_user),
     service: MatchService = Depends(get_service),
+    presenter: TaskPresenter = Depends(get_task_presenter),
 ) -> dict:
     try:
         task = service.create_task(
@@ -85,7 +100,7 @@ def create_task(
             location_lat=task_creation_params.location.lat,
             location_address=task_creation_params.location.address,
         )
-        return service.format_task_response(task)
+        return _task_response(task, service, presenter)
     except PermissionDenied:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN)
 
@@ -105,6 +120,7 @@ def add_task_images(
     images: list[UploadFile] = File(...),
     user: User = Depends(verified_user),
     service: MatchService = Depends(get_service),
+    presenter: TaskPresenter = Depends(get_task_presenter),
 ) -> dict:
     try:
         task = service.task_add_images(
@@ -114,7 +130,7 @@ def add_task_images(
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
     except InvalidTaskAction as e:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
-    return service.format_task_response(task)
+    return _task_response(task, service, presenter)
 
 
 @router.delete("/{task_id}/images/{image_id}", response_model=TaskSchema)
@@ -123,6 +139,7 @@ def remove_task_image(
     image_id: str,
     user: User = Depends(verified_user),
     service: MatchService = Depends(get_service),
+    presenter: TaskPresenter = Depends(get_task_presenter),
 ) -> dict:
     try:
         task = service.task_remove_image(task_id, owner_id=user.id, image_id=image_id)
@@ -132,7 +149,7 @@ def remove_task_image(
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
     except DomainException:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
-    return service.format_task_response(task)
+    return _task_response(task, service, presenter)
 
 
 @router.put("/{task_id}/edit", response_model=TaskSchema)
@@ -141,6 +158,7 @@ def edit_task(
     task_edit_params: TaskEditRequestSchema,
     user: User = Depends(verified_user),
     service: MatchService = Depends(get_service),
+    presenter: TaskPresenter = Depends(get_task_presenter),
 ) -> dict:
     location = task_edit_params.location
     try:
@@ -161,7 +179,7 @@ def edit_task(
     except MatchServiceException:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST)
 
-    return service.format_task_response(task)
+    return _task_response(task, service, presenter)
 
 
 @router.put("/{task_id}/manage", response_model=TaskSchema)
@@ -172,6 +190,7 @@ def manage_task(
     helper_id: int | None = None,
     user: User = Depends(verified_user),
     service: MatchService = Depends(get_service),
+    presenter: TaskPresenter = Depends(get_task_presenter),
 ) -> dict:
     try:
         match action:
@@ -207,16 +226,19 @@ def manage_task(
     except InvalidTaskAction as e:
         raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail=str(e))
 
-    return service.format_task_response(task)
+    return _task_response(task, service, presenter)
 
 
 @router.get("/", response_model=list[TaskSchema])
 def list_tasks(
     request: Request,
     service: MatchService = Depends(get_service),
+    presenter: TaskPresenter = Depends(get_task_presenter),
     _: User = Depends(verified_user),
 ) -> list:
-    return service.get_tasks_response(filters=_task_filters_from_request(request))
+    return _tasks_response(
+        service.get_tasks(_task_filters_from_request(request)), service, presenter
+    )
 
 
 @router.get("/locations", response_model=list[TaskLocationSchema])
@@ -224,29 +246,37 @@ def list_task_locations(
     request: Request,
     service: MatchService = Depends(get_service),
 ) -> list:
-    return service.get_task_locations(filters=_task_filters_from_request(request))
+    return TaskPresenter.locations(service.get_tasks(_task_filters_from_request(request)))
 
 
 @router.get("/public", response_model=list[PublicTaskSchema])
 def list_tasks_public(
     request: Request,
     service: MatchService = Depends(get_service),
+    presenter: TaskPresenter = Depends(get_task_presenter),
 ) -> list:
-    return service.get_tasks_response(filters=_task_filters_from_request(request))
+    return _tasks_response(
+        service.get_tasks(_task_filters_from_request(request)), service, presenter
+    )
 
 
 @router.get("/my-tasks", response_model=list[TaskSchema])
 def get_my_tasks(
-    user_id: int = Depends(get_user_id), service: MatchService = Depends(get_service)
+    user_id: int = Depends(get_user_id),
+    service: MatchService = Depends(get_service),
+    presenter: TaskPresenter = Depends(get_task_presenter),
 ) -> list[dict]:
-    return service.get_tasks_response(filters={"owner_id": user_id})
+    return _tasks_response(service.get_tasks({"owner_id": user_id}), service, presenter)
 
 
 @router.get("/{task_id}", response_model=TaskSchema)
 def get_task(
-    task_id: int, _: User = Depends(verified_user), service: MatchService = Depends(get_service)
+    task_id: int,
+    _: User = Depends(verified_user),
+    service: MatchService = Depends(get_service),
+    presenter: TaskPresenter = Depends(get_task_presenter),
 ) -> dict:
     try:
-        return service.get_task_response(task_id)
+        return _task_response(service.get_task_by_id(task_id), service, presenter)
     except TaskNotFound:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)

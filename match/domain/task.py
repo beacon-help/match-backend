@@ -124,6 +124,17 @@ class Task:
     def __repr__(self) -> str:
         return f"<Task {self.id}>"
 
+    @property
+    def participant_ids(self) -> set[UserId]:
+        user_ids = {self.owner_id}
+        if self.helper_id is not None:
+            user_ids.add(self.helper_id)
+        for event in self.events:
+            user_ids.add(event.actor_id)
+            if event.helper_id is not None:
+                user_ids.add(event.helper_id)
+        return user_ids
+
     @classmethod
     def create_task(
         cls,
