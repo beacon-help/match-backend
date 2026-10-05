@@ -35,10 +35,10 @@ def test_task_remove_image_keeps_file_when_persisting_fails(service, monkeypatch
     task = service.task_add_images(task_id=100, owner_id=100, images=[b"fake image bytes"])
     image_id = task.images[0]
 
-    def failing_task_update(task):
+    def failing_save_task(task):
         raise RepositoryException("boom")
 
-    monkeypatch.setattr(service.task_repository, "task_update", failing_task_update)
+    monkeypatch.setattr(service.task_repository, "save_task", failing_save_task)
 
     with pytest.raises(RepositoryException):
         service.task_remove_image(task_id=100, owner_id=100, image_id=image_id)

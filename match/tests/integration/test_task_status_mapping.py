@@ -53,13 +53,13 @@ def test_every_event_type_has_a_scenario():
 
 @pytest.mark.parametrize("event_type", SCENARIOS)
 def test_stored_status_matches_domain_status(repository, event_type):
-    task = repository.create_task(
+    task = repository.save_task(
         Task.create_task(
             owner=OWNER, title="t", description="d", category=Category.OTHER, location=None
         )
     )
     SCENARIOS[event_type](task)
-    repository.task_update(task)
+    repository.save_task(task)
 
     stored = repository.get_task_by_id(task.id)
 

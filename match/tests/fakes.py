@@ -153,10 +153,12 @@ class InMemoryTaskRepository(TaskRepository):
             if task_id not in self.deleted_task_ids
         }
 
-    def _persist_new_images(self, task_id: int, task: Task) -> None:
+    def _sync_images(self, task_id: int, task: Task) -> None:
+        for image_id in [i for i, owner in self.images.items() if owner == task_id]:
+            if image_id not in task.images:
+                del self.images[image_id]
         for image_id in task.images:
-            if image_id not in self.images:
-                self.images[image_id] = task_id
+            self.images.setdefault(image_id, task_id)
 
     def _persist_new_events(self, task: Task) -> None:
         for event in task.events:
@@ -164,14 +166,14 @@ class InMemoryTaskRepository(TaskRepository):
                 self._last_event_id += 1
                 event.id = self._last_event_id
 
-    def create_task(self, task: Task) -> Task:
-        task_id = 1
-        while task_id in self.tasks:
-            task_id += 1
-        task.id = task_id
-        self._persist_new_images(task_id, task)
+    def save_task(self, task: Task) -> Task:
+        if task.id is None:
+            task.id = max(self.tasks, default=0) + 1
+        else:
+            self.get_task_by_id(task.id)
+        self._sync_images(task.id, task)
         self._persist_new_events(task)
-        self.tasks[task_id] = deepcopy(task)
+        self.tasks[task.id] = deepcopy(task)
         return deepcopy(task)
 
     def get_task_by_id(self, task_id: int) -> Task:
@@ -199,24 +201,11 @@ class InMemoryTaskRepository(TaskRepository):
             ]
         return tasks
 
-    def task_update(self, task: Task) -> Task:
-        if task.id is None:
-            raise exceptions.RepositoryException("Cannot update task without id.")
-        self.get_task_by_id(task.id)
-        self._persist_new_images(task.id, task)
-        self._persist_new_events(task)
-        self.tasks[task.id] = task
-        return deepcopy(task)
-
     def count_tasks_by_status(self) -> dict[TaskStatus, int]:
         return dict(Counter(task.status for task in self._active_tasks().values()))
 
     def image_exists(self, image_id: ImageId) -> bool:
         return self.images.get(image_id) in self._active_tasks()
-
-    def images_delete(self, image_ids: list[ImageId]) -> None:
-        for image_id in image_ids:
-            self.images.pop(image_id, None)
 
     def tasks_delete_owned_by(self, owner_id: UserId, deleted_at: datetime) -> None:
         self.deleted_task_ids.update(

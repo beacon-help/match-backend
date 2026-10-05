@@ -145,7 +145,7 @@ class MatchService:
             category=category_enum,
             location=location,
         )
-        task = self.task_repository.create_task(task)
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         return task
 
@@ -164,7 +164,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         user = self.get_user_by_id(user_id)
         task.join(user, message)
-        task = self.task_repository.task_update(task)
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         return task
 
@@ -172,7 +172,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.approve_helper(owner, helper_id=UserId(helper_id))
-        task = self.task_repository.task_update(task)
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         return task
 
@@ -180,7 +180,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.reject_helper(owner, helper_id=UserId(helper_id))
-        task = self.task_repository.task_update(task)
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         return task
 
@@ -188,7 +188,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         helper = self.get_user_by_id(helper_id)
         task.withdraw(helper)
-        task = self.task_repository.task_update(task)
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         return task
 
@@ -226,7 +226,7 @@ class MatchService:
             category=category_enum,
             location=location,
         )
-        task = self.task_repository.task_update(task)
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         return task
 
@@ -241,7 +241,7 @@ class MatchService:
         task.validate_editable_by(owner)
         image_ids = [ImageId(self.image_repository.upload(image)) for image in images]
         task.add_images(owner, image_ids)
-        task = self.task_repository.task_update(task)
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         return task
 
@@ -249,8 +249,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.remove_image(owner, ImageId(image_id))
-        task = self.task_repository.task_update(task)
-        self.task_repository.images_delete([ImageId(image_id)])
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         self.image_repository.delete(image_id)
         return task
@@ -259,7 +258,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.close(owner)
-        task = self.task_repository.task_update(task)
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         return task
 
@@ -267,7 +266,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.report_succeeded(owner)
-        task = self.task_repository.task_update(task)
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         return task
 
@@ -275,7 +274,7 @@ class MatchService:
         task = self.get_task_by_id(task_id)
         owner = self.get_user_by_id(owner_id)
         task.report_failed(owner)
-        task = self.task_repository.task_update(task)
+        task = self.task_repository.save_task(task)
         self.unit_of_work.commit()
         return task
 
