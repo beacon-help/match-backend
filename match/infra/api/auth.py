@@ -3,9 +3,10 @@ from http import HTTPStatus
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
+from match.app.exceptions import AuthenticationFailed
 from match.app.service import MatchService
 from match.bootstrap import get_service
-from match.domain.exceptions import AuthenticationFailed, UserNotFound
+from match.domain.exceptions import UserNotFound
 from match.domain.user import User
 from match.infra.api.schemas import RefreshRequestSchema, TokenSchema
 from match.infra.api.security import (
