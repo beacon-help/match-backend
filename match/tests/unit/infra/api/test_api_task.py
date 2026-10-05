@@ -337,6 +337,9 @@ def test_edit_task_happy_path(test_client):
     assert task["description"] == "new description"
     assert task["category"] == "food"
     assert task["location"] == {"lat": 39.4738, "lon": 0.3756, "address": "New address"}
+    stored = test_client.get(f"/task/{new_task['id']}", headers=build_headers(100)).json()
+    assert stored["location"] == {"lat": 39.4738, "lon": 0.3756, "address": "New address"}
+    assert stored["title"] == "new title"
 
 
 def test_edit_task_partial_location_raises(test_client):

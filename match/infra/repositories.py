@@ -848,6 +848,9 @@ class SQLiteRepository(MatchRepository):
             else None
         )
         db_obj.category = task.category.value
+        db_obj.location_lat = task.location.lat if task.location else None
+        db_obj.location_lon = task.location.lon if task.location else None
+        db_obj.location_address = task.location.address if task.location else None
         db_obj.updated_at = task.updated_at
 
         self._persist_new_images(task.id, task)
