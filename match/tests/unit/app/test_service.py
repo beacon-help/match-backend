@@ -9,13 +9,14 @@ from match.domain.task import TaskEventType
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
 from match.infra.repositories import InMemoryMatchRepository
+from match.tests.fakes import seeded_in_memory_repository
 
 
 @pytest.fixture
 def service(tmp_path, config):
     return MatchService(
         user_messaging_client=FakeMessageClient(config=config),
-        repository=InMemoryMatchRepository(),
+        repository=seeded_in_memory_repository(),
         image_repository=LocalImageRepository(
             storage_dir=str(tmp_path / "imgs"), backend_host=config.BACKEND_HOST
         ),
@@ -46,7 +47,7 @@ def test_get_stats(service):
 
 
 def test_get_stats_empty(service):
-    service.repository = InMemoryMatchRepository(test_data=False)
+    service.repository = InMemoryMatchRepository()
 
     task_stats, user_stats = service.get_stats()
 

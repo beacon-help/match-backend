@@ -3,11 +3,12 @@ import pytest
 from match.domain.task import TaskStatus
 from match.domain.user import User, UserType
 from match.infra.repositories import InMemoryMatchRepository
+from match.tests.fakes import seeded_in_memory_repository
 
 
 @pytest.fixture(scope="function")
 def in_memory_user_repository():
-    return InMemoryMatchRepository(test_data=False)
+    return InMemoryMatchRepository()
 
 
 def test_create_user(in_memory_user_repository):
@@ -37,7 +38,7 @@ def test_create_user(in_memory_user_repository):
 
 
 def test_get_tasks_can_filter_by_status():
-    repository = InMemoryMatchRepository()
+    repository = seeded_in_memory_repository()
 
     tasks = repository.get_tasks({"status": TaskStatus.PENDING})
 
@@ -46,7 +47,7 @@ def test_get_tasks_can_filter_by_status():
 
 
 def test_get_tasks_can_filter_by_null_helper_id():
-    repository = InMemoryMatchRepository()
+    repository = seeded_in_memory_repository()
 
     tasks = repository.get_tasks({"helper_id": None})
 
@@ -55,12 +56,12 @@ def test_get_tasks_can_filter_by_null_helper_id():
 
 
 def test_count_tasks_by_status():
-    repository = InMemoryMatchRepository()
+    repository = seeded_in_memory_repository()
 
     assert repository.count_tasks_by_status() == {status: 1 for status in TaskStatus}
 
 
 def test_count_users_by_type():
-    repository = InMemoryMatchRepository()
+    repository = seeded_in_memory_repository()
 
     assert repository.count_users_by_type() == {UserType.VOLUNTEER: 2, UserType.HELP_SEEKER: 2}
