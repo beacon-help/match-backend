@@ -4,7 +4,7 @@ from sqlalchemy import text
 
 from match.db import Session
 from match.tests.conftest import build_headers
-from match.tests.unit.infra.api.test_api_task import insert_events
+from match.tests.integration.api.test_api_task import insert_events
 
 
 def test_get_stats(test_client):

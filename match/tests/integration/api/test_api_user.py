@@ -7,7 +7,7 @@ import pytest
 from match.app.service import MatchService
 from match.domain.exceptions import UserNotFound
 from match.tests.conftest import build_headers
-from match.tests.unit.infra.api.conftest import SEED_PASSWORD, VALID_VERIF_CODE
+from match.tests.integration.api.conftest import SEED_PASSWORD, VALID_VERIF_CODE
 
 
 def build_user_response(user_id=100):
