@@ -3,8 +3,9 @@ from datetime import timezone as tz
 
 import pytest
 
+from match.app.exceptions import ImageNotFound
 from match.app.service import MatchService
-from match.domain.exceptions import ImageNotFound, RepositoryException, TaskNotFound, UserNotFound
+from match.domain.exceptions import RepositoryException, TaskNotFound, UserNotFound
 from match.domain.task import TaskEventType
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient

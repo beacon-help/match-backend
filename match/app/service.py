@@ -2,13 +2,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Iterable
 
-from match.domain.exceptions import (
-    AuthenticationFailed,
-    ImageNotFound,
-    MatchServiceException,
-    UserNotFound,
-    UserVerificationCodeInvalid,
-)
+from match.app.exceptions import AuthenticationFailed, ImageNotFound, MatchServiceException
+from match.domain.exceptions import UserNotFound, UserVerificationCodeInvalid
 from match.domain.interfaces import ImageRepository, MatchRepository, MessageClient, TaskFilter
 from match.domain.task import Category, ImageId, Location, Task, TaskStatus
 from match.domain.user import User, UserId, UserType, create_user_verification_message

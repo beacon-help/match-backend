@@ -3,15 +3,13 @@ from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 
+from match.app.exceptions import ImageNotFound, MatchServiceException, PermissionDenied
 from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import (
     DomainException,
-    ImageNotFound,
     InvalidLocation,
     InvalidTaskAction,
-    MatchServiceException,
-    PermissionDenied,
     TaskNotFound,
 )
 from match.domain.interfaces import TaskFilter
