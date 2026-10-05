@@ -640,3 +640,32 @@ def test_manage_task_rejects_invalid_transition(test_client):
     )
 
     assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+@pytest.fixture
+def cancelled_task():
+    session = Session()
+    insert_events(session, (100, "closed", 100, None))
+    session.commit()
+    return 100
+
+
+def test_edit_cancelled_task_is_forbidden(test_client, cancelled_task):
+    response = test_client.put(
+        f"/task/{cancelled_task}/edit", json=UPDATE_PAYLOAD, headers=build_headers(100)
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    task = test_client.get(f"/task/{cancelled_task}", headers=build_headers(100)).json()
+    assert task["title"] == "Help"
+
+
+def test_add_images_to_cancelled_task_is_forbidden(test_client, image_storage_dir, cancelled_task):
+    response = test_client.post(
+        f"/task/{cancelled_task}/images",
+        files={"images": ("photo.jpg", b"fake image bytes", "image/jpeg")},
+        headers=build_headers(100),
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert list(image_storage_dir.iterdir()) == []

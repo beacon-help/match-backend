@@ -1,7 +1,7 @@
 import pytest
 
 from match.domain.exceptions import DomainException, InvalidLocation, InvalidTaskAction
-from match.domain.task import Category, LocationRadius, Task, TaskEventType
+from match.domain.task import Category, LocationRadius, Task, TaskEventType, TaskStatus
 from match.domain.user import User, UserType
 
 
@@ -173,3 +173,25 @@ def test_failed_action_records_no_event():
 def test_location_radius_rejects_invalid_values(lat, lon, radius_km):
     with pytest.raises(InvalidLocation):
         LocationRadius(lat=lat, lon=lon, radius_km=radius_km)
+
+
+@pytest.mark.parametrize("status", (TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED))
+@pytest.mark.parametrize(
+    "change",
+    (
+        pytest.param(lambda task, owner: task.edit(owner, title="new"), id="edit"),
+        pytest.param(lambda task, owner: task.add_images(owner, ["img-2"]), id="add-images"),
+        pytest.param(lambda task, owner: task.remove_image(owner, "img-1"), id="remove-image"),
+    ),
+)
+def test_finished_task_cannot_be_changed(status, change):
+    owner = build_user(1)
+    task = build_task(owner)
+    task.add_images(owner, ["img-1"])
+    task.status = status
+
+    with pytest.raises(InvalidTaskAction):
+        change(task, owner)
+
+    assert task.title == "title"
+    assert task.images == ["img-1"]

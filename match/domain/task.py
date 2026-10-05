@@ -19,6 +19,9 @@ class TaskStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+FINISHED_STATUSES = (TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.CANCELLED)
+
+
 class Category(StrEnum):
     TRANSPORT = "transport people"
     FOOD = "food"
@@ -170,6 +173,14 @@ class Task:
         if self.owner_id != user.id:
             raise NotAnOwner("User is not an owner.")
 
+    def validate_editable_by(self, user: User) -> None:
+        try:
+            self._validate_owner(user)
+        except NotAnOwner as e:
+            raise InvalidTaskAction from e
+        if self.status in FINISHED_STATUSES:
+            raise InvalidTaskAction("Finished tasks cannot be changed.")
+
     def join(self, helper_id: UserId, message: str) -> None:
         if self.status != TaskStatus.OPEN:
             raise InvalidTaskAction(f"Cannot join this Task with status {self.status}")
@@ -249,11 +260,7 @@ class Task:
         category: Category | None = None,
         location: Location | None = None,
     ) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self.validate_editable_by(user)
         if title is not None:
             self.title = title
         if description is not None:
@@ -265,20 +272,12 @@ class Task:
         self._post_task_update()
 
     def add_images(self, user: User, image_ids: list[ImageId]) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self.validate_editable_by(user)
         self.images.extend(image_ids)
         self._post_task_update()
 
     def remove_image(self, user: User, image_id: ImageId) -> None:
-        try:
-            self._validate_owner(user)
-        except NotAnOwner as e:
-            raise InvalidTaskAction from e
-
+        self.validate_editable_by(user)
         if image_id not in self.images:
             raise DomainException(f"Image {image_id} not found on task.")
 
