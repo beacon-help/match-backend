@@ -121,6 +121,42 @@ def test_reject_records_rejected_helper():
     assert event_summary(task)[-1] == (TaskEventType.REJECTED, 1, 2)
 
 
+def test_reject_approved_helper_reopens_task():
+    owner = build_user(1)
+    task = build_task(owner)
+    task.join(build_user(2), "I can help")
+    task.approve_helper(owner, 2)
+
+    task.reject_helper(owner, 2)
+
+    assert task.status == TaskStatus.OPEN
+    assert task.helper_id is None
+    assert event_summary(task)[-1] == (TaskEventType.REJECTED, 1, 2)
+
+
+@pytest.mark.parametrize(
+    "finish",
+    (
+        pytest.param(lambda task, owner: task.report_succeeded(owner), id="succeeded"),
+        pytest.param(lambda task, owner: task.report_failed(owner), id="failed"),
+        pytest.param(lambda task, owner: task.close(owner), id="cancelled"),
+    ),
+)
+def test_reject_helper_of_finished_task_raises(finish):
+    owner = build_user(1)
+    task = build_task(owner)
+    task.join(build_user(2), "I can help")
+    task.approve_helper(owner, 2)
+    finish(task, owner)
+    status = task.status
+
+    with pytest.raises(InvalidTaskAction):
+        task.reject_helper(owner, 2)
+
+    assert task.status == status
+    assert task.helper_id == 2
+
+
 def test_report_failed_records_event():
     owner = build_user(1)
     task = build_task(owner)
