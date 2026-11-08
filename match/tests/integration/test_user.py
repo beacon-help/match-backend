@@ -93,10 +93,10 @@ class TestUserTaskInteractions:
             text(
                 f"""
                 INSERT OR REPLACE INTO tasks (
-                    id, title, description, category, owner_id, helper_id, helper_offers,
+                    id, title, description, category, owner_id, helper_id,
                     updated_at, created_at, location_lat, location_lon, location_address
                 ) VALUES (
-                    {task_id}, 'Help', 'please help me', 'other', {owner_id}, {helper_id}, NULL,
+                    {task_id}, 'Help', 'please help me', 'other', {owner_id}, {helper_id},
                     null, '2024-11-14T00:00:00Z', 39.4738, 0.3756, 'My address'
                 );
                 """
@@ -242,7 +242,6 @@ class TestUserTaskInteractions:
         assert task["owner"] == {"id": user_1_id, "first_name": "John"}
         assert task["helper"] is None
 
-    @pytest.mark.skip()
     def test_multiple_users_cannot_join_same_task(self, test_client, populate_db):
         session = populate_db
         task_id = 123
@@ -269,5 +268,7 @@ class TestUserTaskInteractions:
             headers=build_headers(user_3_id),
         )
 
-        assert second_join_reponse.status_code == HTTPStatus.OK
-        # TODO
+        assert second_join_reponse.status_code == HTTPStatus.FORBIDDEN
+        task = test_client.get(f"/task/{task_id}", headers=build_headers(user_1_id)).json()
+        assert task["status"] == "pending"
+        assert task["helper"] == {"id": user_2_id, "first_name": "Adam"}

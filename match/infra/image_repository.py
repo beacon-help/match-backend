@@ -7,10 +7,9 @@ STORAGE_DIR = ".data/imgs"
 
 
 class LocalImageRepository(ImageRepository):
-    def __init__(self, storage_dir: str = STORAGE_DIR, backend_host: str = "") -> None:
+    def __init__(self, storage_dir: str = STORAGE_DIR) -> None:
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
-        self.backend_host = backend_host
 
     def _file_path(self, image_id: str) -> Path:
         return self.storage_dir / image_id
@@ -27,6 +26,3 @@ class LocalImageRepository(ImageRepository):
         file_path = self._file_path(image_id)
         if file_path.exists():
             file_path.unlink()
-
-    def path(self, image_id: str) -> str:
-        return f"{self.backend_host}/task/images/{image_id}"

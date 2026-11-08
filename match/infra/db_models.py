@@ -59,7 +59,6 @@ class Task(Base):
     category: Mapped[str] = mapped_column()
     owner_id: Mapped[int] = mapped_column()
     helper_id: Mapped[int | None] = mapped_column()
-    helper_offers: Mapped[str | None] = mapped_column()
     updated_at: Mapped[datetime | None] = mapped_column()
     created_at: Mapped[datetime] = mapped_column()
     location_lat: Mapped[float | None] = mapped_column()
@@ -87,7 +86,7 @@ class TaskEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column()
 
 
-# View created by migration d56fce9e1540; kept off Base.metadata so create_all skips it.
+# View created by migration d56fce9e1540; kept off Base.metadata so autogenerate ignores it.
 tasks_with_status = Table(
     "tasks_with_status",
     MetaData(),

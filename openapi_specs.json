@@ -223,6 +223,28 @@
         "title": "PublicTaskSchema",
         "type": "object"
       },
+      "PublicUserSchema": {
+        "properties": {
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "user_type": {
+            "$ref": "#/components/schemas/UserType"
+          }
+        },
+        "required": [
+          "id",
+          "user_type",
+          "first_name"
+        ],
+        "title": "PublicUserSchema",
+        "type": "object"
+      },
       "RefreshRequestSchema": {
         "properties": {
           "refresh_token": {
@@ -257,6 +279,7 @@
           "join",
           "approve",
           "reject",
+          "withdraw",
           "close",
           "report_success",
           "report_failure"
@@ -379,6 +402,7 @@
           "offered",
           "approved",
           "rejected",
+          "withdrawn",
           "closed",
           "succeeded",
           "failed"
@@ -751,25 +775,6 @@
           }
         },
         "summary": "Root",
-        "tags": [
-          "health"
-        ]
-      }
-    },
-    "/break": {
-      "get": {
-        "operationId": "trigger_error_break_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Trigger Error",
         "tags": [
           "health"
         ]
@@ -1585,7 +1590,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserSchema"
+                  "$ref": "#/components/schemas/PublicUserSchema"
                 }
               }
             },

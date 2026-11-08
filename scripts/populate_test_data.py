@@ -18,7 +18,7 @@ from match.db import Session
 from match.domain.task import Category, TaskEventType
 from match.domain.user import UserType, VolunteerProperties
 from match.infra import db_models
-from match.infra.api.security import hash_password
+from match.infra.password_hasher import PwdlibPasswordHasher
 
 ALLOWED_ENVS = (Environment.TEST, Environment.DEV)
 
@@ -35,6 +35,7 @@ TASK_EVENT_SEQUENCES: list[list[TaskEventType]] = [
 
 def _build_users() -> list[db_models.User]:
     now = datetime.now(tz.utc)
+    hash_password = PwdlibPasswordHasher().hash
     return [
         db_models.User(
             user_type=UserType.VOLUNTEER,
