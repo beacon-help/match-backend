@@ -7,6 +7,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     EmailStr,
+    Field,
     PlainValidator,
     StringConstraints,
     model_validator,
@@ -17,7 +18,7 @@ from match.domain.task import Category, TaskEventType, TaskStatus
 from match.domain.user import UserType, VolunteerProperties
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-Password = Annotated[str, StringConstraints(min_length=8)]
+Password = Annotated[str, StringConstraints(min_length=8), Field(repr=False)]
 
 
 class UserCreationBaseSchema(BaseModel):
@@ -62,7 +63,7 @@ ProfileUpdateBody = Annotated[
 class PasswordChangeRequestSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    current_password: str
+    current_password: Annotated[str, Field(repr=False)]
     new_password: Password
 
     @model_validator(mode="after")
