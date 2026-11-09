@@ -82,3 +82,4 @@ recreate-test-db:
 	make reset-db
 	make upgrade
 	make populate-test-data
+	docker compose restart $(SERVICE)
