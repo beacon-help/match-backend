@@ -4,6 +4,9 @@ name =
 before =
 OPENAPI_OUTPUT = ./openapi_specs.json
 
+list:
+	@grep -E '^[a-zA-Z0-9_ -]+:' $(firstword $(MAKEFILE_LIST)) | sed 's/:$$//'
+
 build:
 	make down
 	docker build . --no-cache --progress=plain
