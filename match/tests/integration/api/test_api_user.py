@@ -8,6 +8,8 @@ from sqlalchemy import text
 from match.app.service import MatchService
 from match.db import Session
 from match.domain.exceptions import UserNotFound
+from match.infra.api.schemas import VolunteerUpdateRequestSchema
+from match.infra.api.user import profile_update_params
 from match.infra.password_hasher import PwdlibPasswordHasher
 from match.tests.conftest import build_headers
 from match.tests.integration.api.conftest import SEED_PASSWORD, VALID_VERIF_CODE
@@ -360,6 +362,25 @@ def test_help_seeker_cannot_send_properties(test_client, properties):
     )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert _error_types_and_locs(response) == [("extra_forbidden", ["body", "properties"])]
+    assert test_client.get("/user/me", headers=headers).json()["first_name"] == "Adam"
+
+
+def test_help_seeker_properties_rejected_by_domain_answer_like_schema(test_client):
+    headers = build_headers(101)
+    payload = {"first_name": "Adrian", "last_name": "Adams", "properties": ["has_car"]}
+    schema_response = test_client.put("/user/me", json=payload, headers=headers)
+    test_client.app.dependency_overrides[profile_update_params] = (
+        lambda: VolunteerUpdateRequestSchema.model_validate(payload)
+    )
+
+    try:
+        response = test_client.put("/user/me", json=payload, headers=headers)
+    finally:
+        del test_client.app.dependency_overrides[profile_update_params]
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert response.json() == schema_response.json()
     assert _error_types_and_locs(response) == [("extra_forbidden", ["body", "properties"])]
     assert test_client.get("/user/me", headers=headers).json()["first_name"] == "Adam"
 

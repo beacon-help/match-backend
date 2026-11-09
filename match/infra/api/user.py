@@ -9,7 +9,12 @@ from pydantic import ValidationError
 from match.app.exceptions import CurrentPasswordIncorrect
 from match.app.service import MatchService
 from match.bootstrap import get_service
-from match.domain.exceptions import EmailAlreadyRegistered, UserNotFound, UserVerificationError
+from match.domain.exceptions import (
+    EmailAlreadyRegistered,
+    HelpSeekerCannotHaveProperties,
+    UserNotFound,
+    UserVerificationError,
+)
 from match.domain.user import User, UserType
 from match.infra.api.auth import authenticated_user, verified_user
 from match.infra.api.schemas import (
@@ -66,6 +71,17 @@ def update_me(
         )
     except UserNotFound:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
+    except HelpSeekerCannotHaveProperties:
+        raise RequestValidationError(
+            [
+                {
+                    "type": "extra_forbidden",
+                    "loc": ("body", "properties"),
+                    "msg": "Extra inputs are not permitted",
+                    "input": properties,
+                }
+            ]
+        )
     return asdict(updated_user)
 
 
