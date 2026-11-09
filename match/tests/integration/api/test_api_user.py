@@ -417,17 +417,63 @@ def test_update_me_rejects_invalid_payload(test_client, payload, expected_error)
     assert test_client.get("/user/me", headers=headers).json() == build_user_response()
 
 
-@pytest.mark.parametrize(
-    "user_id", (pytest.param(None, id="anonymous"), pytest.param(102, id="unverified"))
+JSON_CONTENT_TYPE = {"Content-Type": "application/json"}
+INVALID_BODIES = (
+    pytest.param({"content": b'{"first_name": '}, id="malformed-json"),
+    pytest.param({"content": b'{"first_name": "\xff"}'}, id="invalid-utf8"),
+    pytest.param({}, id="no-body"),
+    pytest.param({"content": b'["Jane", "Doe"]'}, id="not-an-object"),
+    pytest.param({"content": b"{}"}, id="missing-fields"),
 )
-def test_update_me_requires_verified_user(test_client, user_id):
-    headers = build_headers(user_id) if user_id else {}
+UNAUTHORIZED_USERS = (pytest.param(None, id="anonymous"), pytest.param(102, id="unverified"))
 
-    response = test_client.put(
-        "/user/me", json={"first_name": "Jane", "last_name": "Doe"}, headers=headers
-    )
+
+@pytest.mark.parametrize("user_id", UNAUTHORIZED_USERS)
+@pytest.mark.parametrize(
+    "body",
+    (
+        pytest.param({"json": {"first_name": "Jane", "last_name": "Doe"}}, id="valid"),
+        *INVALID_BODIES,
+    ),
+)
+def test_update_me_requires_verified_user(test_client, user_id, body):
+    headers = {**JSON_CONTENT_TYPE, **(build_headers(user_id) if user_id else {})}
+
+    response = test_client.put("/user/me", headers=headers, **body)
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+@pytest.mark.parametrize("path", ("/user/me", "/user/me/password"))
+def test_malformed_json_from_verified_user_is_rejected(test_client, path):
+    response = test_client.put(
+        path, content=b'{"first_name": ', headers={**JSON_CONTENT_TYPE, **build_headers(100)}
+    )
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert response.json() == {
+        "detail": [
+            {
+                "type": "json_invalid",
+                "loc": ["body", 15],
+                "msg": "JSON decode error",
+                "input": {},
+                "ctx": {"error": "Expecting value"},
+            }
+        ]
+    }
+
+
+@pytest.mark.parametrize("path", ("/user/me", "/user/me/password"))
+def test_undecodable_body_from_verified_user_is_rejected(test_client, path):
+    response = test_client.put(
+        path,
+        content=b'{"first_name": "\xff"}',
+        headers={**JSON_CONTENT_TYPE, **build_headers(100)},
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json() == {"detail": "There was an error parsing the body"}
 
 
 def test_deleted_user_cannot_update_profile(test_client, deleted_user):
@@ -545,16 +591,24 @@ def test_change_password_rejects_invalid_payload(test_client, payload):
     assert _login(test_client, SEED_PASSWORD).status_code == HTTPStatus.OK
 
 
+@pytest.mark.parametrize("user_id", UNAUTHORIZED_USERS)
 @pytest.mark.parametrize(
-    "user_id", (pytest.param(None, id="anonymous"), pytest.param(102, id="unverified"))
+    "body",
+    (
+        pytest.param(
+            {"json": {"current_password": SEED_PASSWORD, "new_password": NEW_PASSWORD}},
+            id="valid",
+        ),
+        *INVALID_BODIES,
+    ),
 )
-def test_change_password_requires_verified_user(test_client, user_id):
-    headers = build_headers(user_id) if user_id else {}
-    payload = {"current_password": SEED_PASSWORD, "new_password": NEW_PASSWORD}
+def test_change_password_requires_verified_user(test_client, user_id, body):
+    headers = {**JSON_CONTENT_TYPE, **(build_headers(user_id) if user_id else {})}
 
-    response = test_client.put("/user/me/password", json=payload, headers=headers)
+    response = test_client.put("/user/me/password", headers=headers, **body)
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert _login(test_client, SEED_PASSWORD).status_code == HTTPStatus.OK
 
 
 def test_deleted_user_cannot_change_password(test_client, deleted_user):

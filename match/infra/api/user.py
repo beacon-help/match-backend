@@ -17,6 +17,7 @@ from match.domain.exceptions import (
 )
 from match.domain.user import User, UserType
 from match.infra.api.auth import authenticated_user, verified_user
+from match.infra.api.routing import AuthBeforeBodyRoute
 from match.infra.api.schemas import (
     HelpseekerCreationRequestSchema,
     HelpseekerUpdateRequestSchema,
@@ -29,7 +30,7 @@ from match.infra.api.schemas import (
     VolunteerUpdateRequestSchema,
 )
 
-router = APIRouter()
+router = APIRouter(route_class=AuthBeforeBodyRoute)
 
 
 @router.get("/me", response_model=UserSchema)
