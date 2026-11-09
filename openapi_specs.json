@@ -132,6 +132,27 @@
         "title": "HelpseekerCreationRequestSchema",
         "type": "object"
       },
+      "HelpseekerUpdateRequestSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "first_name": {
+            "minLength": 1,
+            "title": "First Name",
+            "type": "string"
+          },
+          "last_name": {
+            "minLength": 1,
+            "title": "Last Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name"
+        ],
+        "title": "HelpseekerUpdateRequestSchema",
+        "type": "object"
+      },
       "ImageSchema": {
         "properties": {
           "id": {
@@ -746,6 +767,35 @@
         ],
         "title": "VolunteerProperties",
         "type": "string"
+      },
+      "VolunteerUpdateRequestSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "first_name": {
+            "minLength": 1,
+            "title": "First Name",
+            "type": "string"
+          },
+          "last_name": {
+            "minLength": 1,
+            "title": "Last Name",
+            "type": "string"
+          },
+          "properties": {
+            "items": {
+              "$ref": "#/components/schemas/VolunteerProperties"
+            },
+            "title": "Properties",
+            "type": "array"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "properties"
+        ],
+        "title": "VolunteerUpdateRequestSchema",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1408,6 +1458,58 @@
           }
         ],
         "summary": "Get Me",
+        "tags": [
+          "user"
+        ]
+      },
+      "put": {
+        "operationId": "update_me_user_me_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/HelpseekerUpdateRequestSchema"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VolunteerUpdateRequestSchema"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Me",
         "tags": [
           "user"
         ]

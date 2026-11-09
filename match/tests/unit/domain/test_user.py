@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from match.domain import exceptions as domain_exceptions
-from match.domain.user import User, UserType
+from match.domain.user import User, UserType, VolunteerProperties
 
 
 def build_user(
@@ -82,3 +82,36 @@ def test_delete_already_deleted_user_raises():
 
     with pytest.raises(domain_exceptions.UserAlreadyDeleted):
         user.delete()
+
+
+def test_update_profile_replaces_volunteer_name_and_properties():
+    user = build_user(1, user_type=UserType.VOLUNTEER)
+    user.properties = ["has_tools"]
+
+    user.update_profile(
+        first_name="Jane",
+        last_name="Doe",
+        properties=[VolunteerProperties.HAS_CAR, VolunteerProperties.CAN_HOST],
+    )
+
+    assert (user.first_name, user.last_name) == ("Jane", "Doe")
+    assert user.properties == ["has_car", "can_host"]
+
+
+def test_update_profile_changes_help_seeker_name():
+    user = build_user(1, user_type=UserType.HELP_SEEKER)
+
+    user.update_profile(first_name="Jane", last_name="Doe", properties=[])
+
+    assert (user.first_name, user.last_name, user.properties) == ("Jane", "Doe", [])
+
+
+def test_update_profile_rejects_help_seeker_properties():
+    user = build_user(1, user_type=UserType.HELP_SEEKER)
+
+    with pytest.raises(domain_exceptions.HelpSeekerCannotHaveProperties):
+        user.update_profile(
+            first_name="Jane", last_name="Doe", properties=[VolunteerProperties.HAS_CAR]
+        )
+
+    assert (user.first_name, user.last_name, user.properties) == ("John", "Test", [])

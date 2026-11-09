@@ -5,7 +5,13 @@ import pytest
 
 from match.app.exceptions import ImageNotFound
 from match.app.service import MatchService
-from match.domain.exceptions import RepositoryException, TaskNotFound, UserNotFound
+from match.domain.exceptions import (
+    HelpSeekerCannotHaveProperties,
+    RepositoryException,
+    TaskNotFound,
+    UserNotFound,
+)
+from match.domain.user import VolunteerProperties
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
 from match.infra.password_hasher import PwdlibPasswordHasher
@@ -108,3 +114,23 @@ def test_delete_user_commits_once(service):
     service.delete_user(100)
 
     assert service.unit_of_work.commits == 1
+
+
+def test_update_profile_saves_name_and_properties(service):
+    user = service.update_profile(
+        100, first_name="Jane", last_name="Doe", properties=[VolunteerProperties.HAS_CAR]
+    )
+
+    assert (user.first_name, user.last_name, user.properties) == ("Jane", "Doe", ["has_car"])
+    assert service.get_user_by_id(100) == user
+    assert service.unit_of_work.commits == 1
+
+
+def test_update_profile_rejects_help_seeker_properties(service):
+    with pytest.raises(HelpSeekerCannotHaveProperties):
+        service.update_profile(
+            101, first_name="Jane", last_name="Doe", properties=[VolunteerProperties.HAS_CAR]
+        )
+
+    assert service.get_user_by_id(101).first_name == "Adam"
+    assert service.unit_of_work.commits == 0

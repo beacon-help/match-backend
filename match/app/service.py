@@ -13,7 +13,13 @@ from match.domain.interfaces import (
     UnitOfWork,
 )
 from match.domain.task import Category, ImageId, Location, Task, TaskStatus
-from match.domain.user import User, UserId, UserType, create_user_verification_message
+from match.domain.user import (
+    User,
+    UserId,
+    UserType,
+    VolunteerProperties,
+    create_user_verification_message,
+)
 
 VERIFICATION_URL = "localhost:8000/user/verify/"
 
@@ -84,6 +90,19 @@ class MatchService:
 
     def get_user_by_id(self, user_id: int) -> User:
         return self.repository.get_user_by_id(user_id)
+
+    def update_profile(
+        self,
+        user_id: int,
+        first_name: str,
+        last_name: str,
+        properties: list[VolunteerProperties],
+    ) -> User:
+        user = self.get_user_by_id(user_id)
+        user.update_profile(first_name=first_name, last_name=last_name, properties=properties)
+        user = self.repository.user_update(user)
+        self.unit_of_work.commit()
+        return user
 
     def delete_user(self, user_id: int) -> None:
         user = self.get_user_by_id(user_id)

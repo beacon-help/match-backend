@@ -1,11 +1,14 @@
 import enum
 from datetime import datetime
+from typing import Annotated, Any
 
-from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr
+from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr, PlainValidator, StringConstraints
 from pydantic_extra_types.coordinate import Latitude, Longitude
 
 from match.domain.task import Category, TaskEventType, TaskStatus
 from match.domain.user import UserType, VolunteerProperties
+
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class UserCreationBaseSchema(BaseModel):
@@ -23,6 +26,28 @@ class VolunteerCreationRequestSchema(UserCreationBaseSchema):
     model_config = ConfigDict(extra="forbid")
 
     properties: list[VolunteerProperties]
+
+
+class HelpseekerUpdateRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    first_name: Name
+    last_name: Name
+
+
+class VolunteerUpdateRequestSchema(HelpseekerUpdateRequestSchema):
+    properties: list[VolunteerProperties]
+
+
+# Documents both body shapes but passes the body through unvalidated; the API validates it
+# with the schema matching the signed-in user's type.
+ProfileUpdateBody = Annotated[
+    Any,
+    PlainValidator(
+        lambda body: body,
+        json_schema_input_type=HelpseekerUpdateRequestSchema | VolunteerUpdateRequestSchema,
+    ),
+]
 
 
 class UserSchema(BaseModel):

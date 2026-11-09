@@ -253,3 +253,163 @@ def test_delete_me_answers_like_unknown_user_when_already_gone(test_client, monk
 
     assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert response.json() == test_client.delete("/user/me", headers=build_headers(9999)).json()
+
+
+def test_update_me_replaces_profile(test_client):
+    headers = build_headers(100)
+    payload = {"first_name": "  Jane ", "last_name": "Doe", "properties": ["has_car", "can_host"]}
+
+    response = test_client.put("/user/me", json=payload, headers=headers)
+
+    expected = {
+        **build_user_response(),
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "properties": ["has_car", "can_host"],
+    }
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == expected
+    assert test_client.get("/user/me", headers=headers).json() == expected
+
+
+def test_update_me_with_empty_properties_clears_them(test_client):
+    headers = build_headers(100)
+    test_client.put(
+        "/user/me",
+        json={"first_name": "John", "last_name": "Johnson", "properties": ["has_car"]},
+        headers=headers,
+    )
+
+    response = test_client.put(
+        "/user/me",
+        json={"first_name": "John", "last_name": "Johnson", "properties": []},
+        headers=headers,
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == build_user_response()
+    assert test_client.get("/user/me", headers=headers).json() == build_user_response()
+
+
+def _error_types_and_locs(response):
+    return [(error["type"], error["loc"]) for error in response.json()["detail"]]
+
+
+def test_volunteer_must_send_properties(test_client):
+    response = test_client.put(
+        "/user/me", json={"first_name": "Jane", "last_name": "Doe"}, headers=build_headers(100)
+    )
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert _error_types_and_locs(response) == [("missing", ["body", "properties"])]
+
+
+def test_help_seeker_updates_name(test_client):
+    headers = build_headers(101)
+
+    response = test_client.put(
+        "/user/me", json={"first_name": "Adrian", "last_name": "Adams"}, headers=headers
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["first_name"] == "Adrian"
+    assert response.json()["last_name"] == "Adams"
+    assert response.json()["properties"] == []
+    assert test_client.get("/user/me", headers=headers).json() == response.json()
+
+
+@pytest.mark.parametrize(
+    "properties",
+    (pytest.param([], id="empty-properties"), pytest.param(["has_car"], id="properties")),
+)
+def test_help_seeker_cannot_send_properties(test_client, properties):
+    headers = build_headers(101)
+
+    response = test_client.put(
+        "/user/me",
+        json={"first_name": "Adrian", "last_name": "Adams", "properties": properties},
+        headers=headers,
+    )
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert _error_types_and_locs(response) == [("extra_forbidden", ["body", "properties"])]
+    assert test_client.get("/user/me", headers=headers).json()["first_name"] == "Adam"
+
+
+@pytest.mark.parametrize(
+    "payload,expected_error",
+    (
+        pytest.param(
+            {"first_name": "", "last_name": "Doe", "properties": []},
+            ("string_too_short", ["body", "first_name"]),
+            id="empty-first-name",
+        ),
+        pytest.param(
+            {"first_name": "Jane", "last_name": "   ", "properties": []},
+            ("string_too_short", ["body", "last_name"]),
+            id="blank-last-name",
+        ),
+        pytest.param(
+            {"last_name": "Doe", "properties": []},
+            ("missing", ["body", "first_name"]),
+            id="missing-first-name",
+        ),
+        pytest.param(
+            {"first_name": "Jane", "last_name": "Doe", "properties": ["can_fly"]},
+            ("enum", ["body", "properties", 0]),
+            id="unknown-property",
+        ),
+        pytest.param(
+            {"first_name": "Jane", "last_name": "Doe", "properties": [], "email": "j@doe.com"},
+            ("extra_forbidden", ["body", "email"]),
+            id="extra-field",
+        ),
+        pytest.param(["Jane", "Doe"], ("model_type", ["body"]), id="not-an-object"),
+        pytest.param(None, ("missing", ["body"]), id="no-body"),
+    ),
+)
+def test_update_me_rejects_invalid_payload(test_client, payload, expected_error):
+    headers = build_headers(100)
+
+    response = test_client.put("/user/me", json=payload, headers=headers)
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert _error_types_and_locs(response) == [expected_error]
+    assert test_client.get("/user/me", headers=headers).json() == build_user_response()
+
+
+@pytest.mark.parametrize(
+    "user_id", (pytest.param(None, id="anonymous"), pytest.param(102, id="unverified"))
+)
+def test_update_me_requires_verified_user(test_client, user_id):
+    headers = build_headers(user_id) if user_id else {}
+
+    response = test_client.put(
+        "/user/me", json={"first_name": "Jane", "last_name": "Doe"}, headers=headers
+    )
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_deleted_user_cannot_update_profile(test_client, deleted_user):
+    response = test_client.put(
+        "/user/me", json={"first_name": "Jane", "last_name": "Doe"}, headers=build_headers(100)
+    )
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_update_me_answers_like_unknown_user_when_already_gone(test_client, monkeypatch):
+    def raise_error(service, user_id, **kwargs):
+        raise UserNotFound
+
+    monkeypatch.setattr(MatchService, "update_profile", raise_error)
+    payload = {"first_name": "Jane", "last_name": "Doe", "properties": []}
+
+    response = test_client.put("/user/me", json=payload, headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        response.json()
+        == test_client.put("/user/me", json=payload, headers=build_headers(9999)).json()
+    )

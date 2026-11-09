@@ -6,6 +6,7 @@ from enum import Enum, StrEnum
 from typing import NewType
 
 from match.domain.exceptions import (
+    HelpSeekerCannotHaveProperties,
     UserAlreadyDeleted,
     UserNotPendingVerification,
     UserVerificationCodeInvalid,
@@ -57,6 +58,15 @@ class User:
         if self.deleted_at is not None:
             raise UserAlreadyDeleted(f"User {self} is already deleted.")
         self.deleted_at = datetime.now(tz.utc)
+
+    def update_profile(
+        self, first_name: str, last_name: str, properties: list["VolunteerProperties"]
+    ) -> None:
+        if properties and self.user_type == UserType.HELP_SEEKER:
+            raise HelpSeekerCannotHaveProperties(f"User {self} is a help-seeker.")
+        self.first_name = first_name
+        self.last_name = last_name
+        self.properties = [property_.value for property_ in properties]
 
 
 def create_user_verification_message(user: User, verification_url: str) -> str:
