@@ -5,10 +5,13 @@ from dataclasses import dataclass
 from functools import cache
 
 import match_config
+from sentry_sdk.scrubber import DEFAULT_DENYLIST
 
 from dotenv import dotenv_values
 
 ENV_DIR = "dotenv/.env"
+
+SENTRY_DENYLIST = [*DEFAULT_DENYLIST, "current_password", "new_password"]
 
 
 class Environment(enum.Enum):

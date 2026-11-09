@@ -5,9 +5,10 @@ import sentry_sdk
 import uvicorn
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sentry_sdk.scrubber import EventScrubber
 
 from match.bootstrap import get_service
-from match.config import Config, Environment, get_config
+from match.config import SENTRY_DENYLIST, Config, Environment, get_config
 from match.infra.api.auth import router as auth_api
 from match.infra.api.health import router as health_api
 from match.infra.api.stats import router as stats_api
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
         sentry_sdk.init(
             dsn=config.SENTRY_DSN,
             send_default_pii=True,
+            event_scrubber=EventScrubber(denylist=SENTRY_DENYLIST, send_default_pii=True),
             traces_sample_rate=1.0,
             environment=str(config.ENV),
             _experiments={"continuous_profiling_auto_start": True},
