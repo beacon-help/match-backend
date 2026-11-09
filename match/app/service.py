@@ -58,14 +58,17 @@ class MatchService:
         self.unit_of_work.commit()
         return user
 
+    def _verify_password(self, user: User, password: str) -> bool:
+        return user.password_hash is not None and self.password_hasher.verify(
+            password, user.password_hash
+        )
+
     def authenticate(self, email: str, password: str) -> User:
         try:
             user = self.repository.get_user_by_email(email)
         except UserNotFound:
             raise AuthenticationFailed
-        if user.password_hash is None or not self.password_hasher.verify(
-            password, user.password_hash
-        ):
+        if not self._verify_password(user, password):
             raise AuthenticationFailed
         if not user.is_verified:
             raise AuthenticationFailed
