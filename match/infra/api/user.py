@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
+from match.app.exceptions import CurrentPasswordIncorrect
 from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import EmailAlreadyRegistered, UserNotFound, UserVerificationError
@@ -14,6 +15,7 @@ from match.infra.api.auth import authenticated_user, verified_user
 from match.infra.api.schemas import (
     HelpseekerCreationRequestSchema,
     HelpseekerUpdateRequestSchema,
+    PasswordChangeRequestSchema,
     ProfileUpdateBody,
     PublicUserSchema,
     UserCreationBaseSchema,
@@ -65,6 +67,26 @@ def update_me(
     except UserNotFound:
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
     return asdict(updated_user)
+
+
+@router.put("/me/password", status_code=HTTPStatus.NO_CONTENT)
+def change_my_password(
+    params: PasswordChangeRequestSchema,
+    user: User = Depends(verified_user),
+    service: MatchService = Depends(get_service),
+) -> None:
+    try:
+        service.change_password(
+            user.id,
+            current_password=params.current_password,
+            new_password=params.new_password,
+        )
+    except UserNotFound:
+        raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
+    except CurrentPasswordIncorrect:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Current password is incorrect."
+        )
 
 
 @router.delete("/me", status_code=HTTPStatus.NO_CONTENT)

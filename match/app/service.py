@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Iterable
 
-from match.app.exceptions import AuthenticationFailed, ImageNotFound
+from match.app.exceptions import AuthenticationFailed, CurrentPasswordIncorrect, ImageNotFound
 from match.domain.exceptions import UserNotFound, UserVerificationCodeInvalid
 from match.domain.interfaces import (
     ImageRepository,
@@ -73,6 +73,14 @@ class MatchService:
         if not user.is_verified:
             raise AuthenticationFailed
         return user
+
+    def change_password(self, user_id: int, current_password: str, new_password: str) -> None:
+        user = self.get_user_by_id(user_id)
+        if not self._verify_password(user, current_password):
+            raise CurrentPasswordIncorrect
+        user.password_hash = self.password_hasher.hash(new_password)
+        self.repository.user_update(user)
+        self.unit_of_work.commit()
 
     def send_verification_request(self, user: User) -> None:
         if not user.verification_code:

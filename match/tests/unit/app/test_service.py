@@ -3,7 +3,7 @@ from datetime import timezone as tz
 
 import pytest
 
-from match.app.exceptions import ImageNotFound
+from match.app.exceptions import CurrentPasswordIncorrect, ImageNotFound
 from match.app.service import MatchService
 from match.domain.exceptions import (
     HelpSeekerCannotHaveProperties,
@@ -134,3 +134,36 @@ def test_update_profile_rejects_help_seeker_properties(service):
 
     assert service.get_user_by_id(101).first_name == "Adam"
     assert service.unit_of_work.commits == 0
+
+
+def _set_password(service, user_id, password):
+    service.repository.users[user_id].password_hash = service.password_hasher.hash(password)
+
+
+def test_change_password_stores_new_hash(service):
+    _set_password(service, 100, "old-password")
+
+    service.change_password(100, current_password="old-password", new_password="new-password")
+
+    password_hash = service.get_user_by_id(100).password_hash
+    assert service.password_hasher.verify("new-password", password_hash)
+    assert not service.password_hasher.verify("old-password", password_hash)
+    assert service.unit_of_work.commits == 1
+
+
+def test_change_password_rejects_wrong_current_password(service):
+    _set_password(service, 100, "old-password")
+    password_hash = service.get_user_by_id(100).password_hash
+
+    with pytest.raises(CurrentPasswordIncorrect):
+        service.change_password(100, current_password="wrong-password", new_password="new-password")
+
+    assert service.get_user_by_id(100).password_hash == password_hash
+    assert service.unit_of_work.commits == 0
+
+
+def test_change_password_rejects_user_without_password(service):
+    with pytest.raises(CurrentPasswordIncorrect):
+        service.change_password(100, current_password="", new_password="new-password")
+
+    assert service.get_user_by_id(100).password_hash is None

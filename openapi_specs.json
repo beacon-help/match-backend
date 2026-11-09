@@ -214,6 +214,26 @@
         "title": "Location",
         "type": "object"
       },
+      "PasswordChangeRequestSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "current_password": {
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "minLength": 8,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeRequestSchema",
+        "type": "object"
+      },
       "PublicTaskSchema": {
         "properties": {
           "category": {
@@ -1510,6 +1530,45 @@
           }
         ],
         "summary": "Update Me",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/user/me/password": {
+      "put": {
+        "operationId": "change_my_password_user_me_password_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeRequestSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Change My Password",
         "tags": [
           "user"
         ]

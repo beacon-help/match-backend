@@ -413,3 +413,100 @@ def test_update_me_answers_like_unknown_user_when_already_gone(test_client, monk
         response.json()
         == test_client.put("/user/me", json=payload, headers=build_headers(9999)).json()
     )
+
+
+NEW_PASSWORD = "n3w-pass"
+
+
+def _login(test_client, password):
+    return test_client.post(
+        "/user/login", data={"username": "john@johnson.com", "password": password}
+    )
+
+
+def test_change_password(test_client):
+    payload = {"current_password": SEED_PASSWORD, "new_password": NEW_PASSWORD}
+
+    response = test_client.put("/user/me/password", json=payload, headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.NO_CONTENT
+    assert response.content == b""
+    assert _login(test_client, NEW_PASSWORD).status_code == HTTPStatus.OK
+    assert _login(test_client, SEED_PASSWORD).status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_change_password_rejects_wrong_current_password(test_client):
+    payload = {"current_password": "wrong-password", "new_password": NEW_PASSWORD}
+
+    response = test_client.put("/user/me/password", json=payload, headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json() == {"detail": "Current password is incorrect."}
+    assert _login(test_client, SEED_PASSWORD).status_code == HTTPStatus.OK
+    assert _login(test_client, NEW_PASSWORD).status_code == HTTPStatus.UNAUTHORIZED
+
+
+@pytest.mark.parametrize(
+    "payload",
+    (
+        pytest.param(
+            {"current_password": SEED_PASSWORD, "new_password": NEW_PASSWORD[:-1]},
+            id="new-password-too-short",
+        ),
+        pytest.param(
+            {"current_password": SEED_PASSWORD, "new_password": SEED_PASSWORD},
+            id="new-password-unchanged",
+        ),
+        pytest.param({"new_password": NEW_PASSWORD}, id="missing-current-password"),
+        pytest.param({"current_password": SEED_PASSWORD}, id="missing-new-password"),
+        pytest.param(
+            {
+                "current_password": SEED_PASSWORD,
+                "new_password": NEW_PASSWORD,
+                "email": "john@johnson.com",
+            },
+            id="extra-field",
+        ),
+    ),
+)
+def test_change_password_rejects_invalid_payload(test_client, payload):
+    response = test_client.put("/user/me/password", json=payload, headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert _login(test_client, SEED_PASSWORD).status_code == HTTPStatus.OK
+
+
+@pytest.mark.parametrize(
+    "user_id", (pytest.param(None, id="anonymous"), pytest.param(102, id="unverified"))
+)
+def test_change_password_requires_verified_user(test_client, user_id):
+    headers = build_headers(user_id) if user_id else {}
+    payload = {"current_password": SEED_PASSWORD, "new_password": NEW_PASSWORD}
+
+    response = test_client.put("/user/me/password", json=payload, headers=headers)
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_deleted_user_cannot_change_password(test_client, deleted_user):
+    payload = {"current_password": SEED_PASSWORD, "new_password": NEW_PASSWORD}
+
+    response = test_client.put("/user/me/password", json=payload, headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_change_password_answers_like_unknown_user_when_already_gone(test_client, monkeypatch):
+    def raise_error(service, user_id, **kwargs):
+        raise UserNotFound
+
+    monkeypatch.setattr(MatchService, "change_password", raise_error)
+    payload = {"current_password": SEED_PASSWORD, "new_password": NEW_PASSWORD}
+
+    response = test_client.put("/user/me/password", json=payload, headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        response.json()
+        == test_client.put("/user/me/password", json=payload, headers=build_headers(9999)).json()
+    )

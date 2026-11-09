@@ -1,14 +1,23 @@
 import enum
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Self
 
-from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr, PlainValidator, StringConstraints
+from pydantic import (
+    AnyUrl,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    PlainValidator,
+    StringConstraints,
+    model_validator,
+)
 from pydantic_extra_types.coordinate import Latitude, Longitude
 
 from match.domain.task import Category, TaskEventType, TaskStatus
 from match.domain.user import UserType, VolunteerProperties
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+Password = Annotated[str, StringConstraints(min_length=8)]
 
 
 class UserCreationBaseSchema(BaseModel):
@@ -48,6 +57,19 @@ ProfileUpdateBody = Annotated[
         json_schema_input_type=HelpseekerUpdateRequestSchema | VolunteerUpdateRequestSchema,
     ),
 ]
+
+
+class PasswordChangeRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str
+    new_password: Password
+
+    @model_validator(mode="after")
+    def check_new_password_differs(self) -> Self:
+        if self.new_password == self.current_password:
+            raise ValueError("New password must differ from the current password.")
+        return self
 
 
 class UserSchema(BaseModel):
