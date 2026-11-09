@@ -165,6 +165,31 @@ def test_create_user_happy_path(test_client, endpoint, payload):
 
 
 @pytest.mark.parametrize("endpoint", ("/user/signup/helpseeker", "/user/signup/volunteer"))
+@pytest.mark.parametrize(
+    "password,expected_status",
+    (
+        pytest.param("7-chars", HTTPStatus.UNPROCESSABLE_ENTITY, id="seven-characters"),
+        pytest.param("8-chars!", HTTPStatus.CREATED, id="eight-characters"),
+    ),
+)
+def test_create_user_requires_eight_character_password(
+    test_client, endpoint, password, expected_status
+):
+    payload = {
+        "first_name": "Nina",
+        "last_name": "New",
+        "email": "nina@example.com",
+        "password": password,
+    }
+    if endpoint.endswith("volunteer"):
+        payload["properties"] = []
+
+    response = test_client.post(endpoint, json=payload)
+
+    assert response.status_code == expected_status
+
+
+@pytest.mark.parametrize("endpoint", ("/user/signup/helpseeker", "/user/signup/volunteer"))
 def test_create_user_with_registered_email_conflicts(test_client, endpoint):
     payload = {
         "first_name": "Someone",

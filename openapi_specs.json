@@ -119,6 +119,7 @@
             "type": "string"
           },
           "password": {
+            "minLength": 8,
             "title": "Password",
             "type": "string"
           }
@@ -757,6 +758,7 @@
             "type": "string"
           },
           "password": {
+            "minLength": 8,
             "title": "Password",
             "type": "string"
           },

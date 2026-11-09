@@ -24,7 +24,7 @@ class UserCreationBaseSchema(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    password: str
+    password: Password
 
 
 class HelpseekerCreationRequestSchema(UserCreationBaseSchema):
