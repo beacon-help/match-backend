@@ -18,6 +18,7 @@ def build_user_response(user_id=100):
         "last_name": "Johnson",
         "email": "john@johnson.com",
         "is_verified": True,
+        "properties": [],
     }
 
 
@@ -160,6 +161,7 @@ def test_create_user_happy_path(test_client, endpoint, payload):
     response = test_client.post(endpoint, data=json.dumps(payload))
 
     assert response.status_code == HTTPStatus.CREATED
+    assert response.json()["properties"] == payload.get("properties", [])
 
 
 @pytest.mark.parametrize("endpoint", ("/user/signup/helpseeker", "/user/signup/volunteer"))

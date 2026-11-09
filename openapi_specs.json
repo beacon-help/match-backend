@@ -617,6 +617,13 @@
             "title": "Last Name",
             "type": "string"
           },
+          "properties": {
+            "items": {
+              "$ref": "#/components/schemas/VolunteerProperties"
+            },
+            "title": "Properties",
+            "type": "array"
+          },
           "user_type": {
             "$ref": "#/components/schemas/UserType"
           }
@@ -627,7 +634,8 @@
           "first_name",
           "last_name",
           "email",
-          "is_verified"
+          "is_verified",
+          "properties"
         ],
         "title": "UserSchema",
         "type": "object"

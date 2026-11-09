@@ -32,6 +32,7 @@ class UserSchema(BaseModel):
     last_name: str
     email: EmailStr
     is_verified: bool
+    properties: list[VolunteerProperties]
 
 
 class PublicUserSchema(BaseModel):
