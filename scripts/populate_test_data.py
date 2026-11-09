@@ -18,9 +18,11 @@ from match.db import Session
 from match.domain.task import Category, TaskEventType
 from match.domain.user import UserType, VolunteerProperties
 from match.infra import db_models
+from match.infra.image_repository import LocalImageRepository
 from match.infra.password_hasher import PwdlibPasswordHasher
 
 ALLOWED_ENVS = (Environment.TEST, Environment.DEV)
+TEST_IMAGES_DIR = ROOT / "match" / "tests" / "imgs"
 
 _APPROVED = [TaskEventType.CREATED, TaskEventType.OFFERED, TaskEventType.APPROVED]
 TASK_EVENT_SEQUENCES: list[list[TaskEventType]] = [
@@ -117,7 +119,17 @@ def _build_users() -> list[db_models.User]:
     ]
 
 
-def _add_tasks(session: SQLAlchemySession, owner_id: int, helper_id: int) -> None:
+def _load_test_images() -> list[bytes]:
+    return [path.read_bytes() for path in sorted(TEST_IMAGES_DIR.glob("*.png"))]
+
+
+def _add_tasks(
+    session: SQLAlchemySession,
+    image_repository: LocalImageRepository,
+    images: list[bytes],
+    owner_id: int,
+    helper_id: int,
+) -> None:
     now = datetime.now(tz.utc)
     categories: list[Category] = list(Category)
     task_data = [
@@ -194,6 +206,10 @@ def _add_tasks(session: SQLAlchemySession, owner_id: int, helper_id: int) -> Non
         session.add(task)
         session.flush()
         session.add_all(
+            db_models.Image(id=image_repository.upload(image), task_id=task.id)
+            for image in images[: i % (len(images) + 1)]
+        )
+        session.add_all(
             db_models.TaskEvent(
                 task_id=task.id,
                 type=event_type.value,
@@ -220,8 +236,10 @@ def main() -> None:
             session.add(user)
         session.flush()
 
-        _add_tasks(session, owner_id=users[0].id, helper_id=users[1].id)
-        _add_tasks(session, owner_id=users[6].id, helper_id=users[1].id)
+        image_repository = LocalImageRepository()
+        images = _load_test_images()
+        _add_tasks(session, image_repository, images, owner_id=users[0].id, helper_id=users[1].id)
+        _add_tasks(session, image_repository, images, owner_id=users[6].id, helper_id=users[1].id)
 
         session.commit()
     finally:
