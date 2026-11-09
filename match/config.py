@@ -36,6 +36,7 @@ class Config:
 
     ACCESS_TOKEN_TTL_MIN: int
     REFRESH_TOKEN_TTL_DAYS: int
+    REVOKE_SESSIONS_ON_PASSWORD_CHANGE: bool
 
 
 @cache
@@ -60,4 +61,5 @@ def get_config() -> Config:
         JWT_SECRET=str(env_values["JWT_SECRET"]),
         ACCESS_TOKEN_TTL_MIN=shared.access_token_ttl_min,
         REFRESH_TOKEN_TTL_DAYS=shared.refresh_token_ttl_days,
+        REVOKE_SESSIONS_ON_PASSWORD_CHANGE=shared.revoke_sessions_on_password_change,
     )

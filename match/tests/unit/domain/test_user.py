@@ -115,3 +115,35 @@ def test_update_profile_rejects_help_seeker_properties():
         )
 
     assert (user.first_name, user.last_name, user.properties) == ("John", "Test", [])
+
+
+def test_change_password_records_when():
+    user = build_user(1)
+    before = datetime.now(tz.utc)
+
+    user.change_password("new-hash")
+
+    assert user.password_hash == "new-hash"
+    assert before <= user.password_changed_at <= datetime.now(tz.utc)
+
+
+def test_session_never_predates_an_unchanged_password():
+    assert not build_user(1).session_predates_password_change(datetime(1970, 1, 1, tzinfo=tz.utc))
+
+
+PASSWORD_CHANGED_AT = datetime(2026, 11, 9, 12, 0, 0, 500_000, tzinfo=tz.utc)
+
+
+@pytest.mark.parametrize(
+    "issued_at,expected",
+    (
+        pytest.param(datetime(2026, 11, 9, 11, 59, 59, tzinfo=tz.utc), True, id="earlier-second"),
+        pytest.param(datetime(2026, 11, 9, 12, 0, 0, tzinfo=tz.utc), True, id="same-second"),
+        pytest.param(datetime(2026, 11, 9, 12, 0, 1, tzinfo=tz.utc), False, id="later-second"),
+    ),
+)
+def test_session_predates_password_change(issued_at, expected):
+    user = build_user(1)
+    user.password_changed_at = PASSWORD_CHANGED_AT
+
+    assert user.session_predates_password_change(issued_at) is expected

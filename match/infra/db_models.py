@@ -38,6 +38,7 @@ class User(Base):
     is_verified: Mapped[bool] = mapped_column(default=False)
     verification_code: Mapped[str] = mapped_column()
     password_hash: Mapped[str | None] = mapped_column(default=None)
+    password_changed_at: Mapped[datetime | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column()
     deleted_at: Mapped[datetime | None] = mapped_column(default=None)
 

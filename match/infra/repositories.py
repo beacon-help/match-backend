@@ -190,6 +190,9 @@ class SQLiteRepository(MatchRepository):
             is_verified=obj.is_verified,
             verification_code=obj.verification_code,
             password_hash=obj.password_hash,
+            password_changed_at=(
+                obj.password_changed_at.replace(tzinfo=tz.utc) if obj.password_changed_at else None
+            ),
             deleted_at=obj.deleted_at,
         )
 
@@ -232,6 +235,7 @@ class SQLiteRepository(MatchRepository):
         db_obj.is_verified = user.is_verified
         db_obj.verification_code = user.verification_code
         db_obj.password_hash = user.password_hash
+        db_obj.password_changed_at = user.password_changed_at
 
         self.session.flush()
         return self._user_to_domain(db_obj)

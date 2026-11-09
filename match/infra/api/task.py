@@ -15,7 +15,7 @@ from match.domain.exceptions import (
 from match.domain.interfaces import TaskFilter
 from match.domain.task import Category, Location, LocationRadius, Task, TaskStatus
 from match.domain.user import User
-from match.infra.api.auth import get_user_id, verified_user
+from match.infra.api.auth import authenticated_user, verified_user
 from match.infra.api.presenters import TaskPresenter
 from match.infra.api.schemas import Location as LocationSchema
 from match.infra.api.schemas import (
@@ -253,11 +253,11 @@ def list_tasks_public(
 
 @router.get("/my-tasks", response_model=list[TaskSchema])
 def get_my_tasks(
-    user_id: int = Depends(get_user_id),
+    user: User = Depends(authenticated_user),
     service: MatchService = Depends(get_service),
     presenter: TaskPresenter = Depends(get_task_presenter),
 ) -> list[dict]:
-    return _tasks_response(service.get_tasks({"owner_id": user_id}), service, presenter)
+    return _tasks_response(service.get_tasks({"owner_id": user.id}), service, presenter)
 
 
 @router.get("/{task_id}", response_model=TaskSchema)

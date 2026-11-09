@@ -24,6 +24,7 @@ def build_service(session: SQLAlchemySession) -> MatchService:
         password_hasher=password_hasher,
         unit_of_work=SqlAlchemyUnitOfWork(session),
         _fe_host=config.FE_HOST,
+        _revoke_sessions_on_password_change=config.REVOKE_SESSIONS_ON_PASSWORD_CHANGE,
     )
 
 

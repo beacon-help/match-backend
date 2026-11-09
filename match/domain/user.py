@@ -37,6 +37,7 @@ class User:
     is_verified: bool = field(default=False)
     verification_code: str = field(default_factory=generate_uuid_as_str)
     password_hash: str | None = field(default=None)
+    password_changed_at: datetime | None = field(default=None)
     deleted_at: datetime | None = field(default=None)
 
     def __repr__(self) -> str:
@@ -58,6 +59,17 @@ class User:
         if self.deleted_at is not None:
             raise UserAlreadyDeleted(f"User {self} is already deleted.")
         self.deleted_at = datetime.now(tz.utc)
+
+    def change_password(self, password_hash: str) -> None:
+        self.password_hash = password_hash
+        self.password_changed_at = datetime.now(tz.utc)
+
+    def session_predates_password_change(self, issued_at: datetime) -> bool:
+        if self.password_changed_at is None:
+            return False
+        # Token issue times are whole seconds, so a session from the same second as the change
+        # can't be ordered against it and counts as older.
+        return issued_at.replace(microsecond=0) <= self.password_changed_at.replace(microsecond=0)
 
     def update_profile(
         self, first_name: str, last_name: str, properties: list["VolunteerProperties"]

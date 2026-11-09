@@ -2,7 +2,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Iterable
 
-from match.app.exceptions import AuthenticationFailed, CurrentPasswordIncorrect, ImageNotFound
+from match.app.exceptions import (
+    AuthenticationFailed,
+    CurrentPasswordIncorrect,
+    ImageNotFound,
+    SessionRevoked,
+)
 from match.domain.exceptions import UserNotFound, UserVerificationCodeInvalid
 from match.domain.interfaces import (
     ImageRepository,
@@ -32,6 +37,7 @@ class MatchService:
     password_hasher: PasswordHasher
     unit_of_work: UnitOfWork
     _fe_host: str
+    _revoke_sessions_on_password_change: bool
 
     def _construct_verification_url(self, code: str) -> str:
         return f"{self._fe_host}/verify/{code}"
@@ -78,7 +84,7 @@ class MatchService:
         user = self.get_user_by_id(user_id)
         if not self._verify_password(user, current_password):
             raise CurrentPasswordIncorrect
-        user.password_hash = self.password_hasher.hash(new_password)
+        user.change_password(self.password_hasher.hash(new_password))
         self.repository.user_update(user)
         self.unit_of_work.commit()
 
@@ -101,6 +107,14 @@ class MatchService:
 
     def get_user_by_id(self, user_id: int) -> User:
         return self.repository.get_user_by_id(user_id)
+
+    def get_session_user(self, user_id: int, issued_at: datetime) -> User:
+        user = self.get_user_by_id(user_id)
+        if self._revoke_sessions_on_password_change and user.session_predates_password_change(
+            issued_at
+        ):
+            raise SessionRevoked
+        return user
 
     def update_profile(
         self,

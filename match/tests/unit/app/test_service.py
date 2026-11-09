@@ -3,7 +3,7 @@ from datetime import timezone as tz
 
 import pytest
 
-from match.app.exceptions import CurrentPasswordIncorrect, ImageNotFound
+from match.app.exceptions import CurrentPasswordIncorrect, ImageNotFound, SessionRevoked
 from match.app.service import MatchService
 from match.domain.exceptions import (
     HelpSeekerCannotHaveProperties,
@@ -28,6 +28,7 @@ def service(tmp_path, config):
         password_hasher=PwdlibPasswordHasher(),
         unit_of_work=FakeUnitOfWork(),
         _fe_host=config.FE_HOST,
+        _revoke_sessions_on_password_change=True,
     )
 
 
@@ -167,3 +168,21 @@ def test_change_password_rejects_user_without_password(service):
         service.change_password(100, current_password="", new_password="new-password")
 
     assert service.get_user_by_id(100).password_hash is None
+
+
+def test_session_from_before_password_change_is_revoked(service):
+    issued_at = datetime.now(tz.utc) - timedelta(seconds=1)
+    _set_password(service, 100, "old-password")
+    service.change_password(100, current_password="old-password", new_password="new-password")
+
+    with pytest.raises(SessionRevoked):
+        service.get_session_user(100, issued_at)
+
+
+def test_session_from_before_password_change_survives_when_revocation_is_off(service):
+    service._revoke_sessions_on_password_change = False
+    issued_at = datetime.now(tz.utc) - timedelta(seconds=1)
+    _set_password(service, 100, "old-password")
+    service.change_password(100, current_password="old-password", new_password="new-password")
+
+    assert service.get_session_user(100, issued_at).id == 100

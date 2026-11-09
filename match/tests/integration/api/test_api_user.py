@@ -1,10 +1,13 @@
+import dataclasses
 import json
+import time
 from http import HTTPStatus
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
 
+from match import bootstrap
 from match.app.service import MatchService
 from match.db import Session
 from match.domain.exceptions import UserNotFound
@@ -633,3 +636,73 @@ def test_change_password_answers_like_unknown_user_when_already_gone(test_client
         response.json()
         == test_client.put("/user/me/password", json=payload, headers=build_headers(9999)).json()
     )
+
+
+def _bearer(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _change_password_after_login(test_client):
+    tokens = _login(test_client, SEED_PASSWORD).json()
+    response = test_client.put(
+        "/user/me/password",
+        json={"current_password": SEED_PASSWORD, "new_password": NEW_PASSWORD},
+        headers=_bearer(tokens["access_token"]),
+    )
+    assert response.status_code == HTTPStatus.NO_CONTENT
+    return tokens
+
+
+@pytest.mark.parametrize("path", ("/user/me", "/task/my-tasks"))
+def test_password_change_revokes_access_tokens(test_client, path):
+    tokens = _change_password_after_login(test_client)
+
+    response = test_client.get(path, headers=_bearer(tokens["access_token"]))
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert response.json() == test_client.get(path, headers=_bearer("not-a-token")).json()
+
+
+def test_password_change_revokes_refresh_tokens(test_client):
+    tokens = _change_password_after_login(test_client)
+
+    response = test_client.post("/user/refresh", json={"refresh_token": tokens["refresh_token"]})
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert (
+        response.json()
+        == test_client.post("/user/refresh", json={"refresh_token": "not-a-token"}).json()
+    )
+
+
+def test_login_after_password_change_starts_a_valid_session(test_client):
+    _change_password_after_login(test_client)
+    # Tokens carry whole-second issue times, and those from the second of the change are revoked.
+    time.sleep(1 - time.time() % 1)
+
+    tokens = _login(test_client, NEW_PASSWORD).json()
+
+    assert test_client.get("/user/me", headers=_bearer(tokens["access_token"])).status_code == (
+        HTTPStatus.OK
+    )
+    refresh_response = test_client.post(
+        "/user/refresh", json={"refresh_token": tokens["refresh_token"]}
+    )
+    assert refresh_response.status_code == HTTPStatus.OK
+
+
+def test_password_change_keeps_sessions_when_revocation_is_off(test_client, monkeypatch):
+    monkeypatch.setattr(
+        bootstrap,
+        "config",
+        dataclasses.replace(bootstrap.config, REVOKE_SESSIONS_ON_PASSWORD_CHANGE=False),
+    )
+    tokens = _change_password_after_login(test_client)
+
+    me_response = test_client.get("/user/me", headers=_bearer(tokens["access_token"]))
+    refresh_response = test_client.post(
+        "/user/refresh", json={"refresh_token": tokens["refresh_token"]}
+    )
+
+    assert me_response.status_code == HTTPStatus.OK
+    assert refresh_response.status_code == HTTPStatus.OK

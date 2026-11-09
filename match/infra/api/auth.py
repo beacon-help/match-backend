@@ -3,7 +3,7 @@ from http import HTTPStatus
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
-from match.app.exceptions import AuthenticationFailed
+from match.app.exceptions import AuthenticationFailed, SessionRevoked
 from match.app.service import MatchService
 from match.bootstrap import get_service
 from match.domain.exceptions import UserNotFound
@@ -12,6 +12,7 @@ from match.infra.api.schemas import RefreshRequestSchema, TokenSchema
 from match.infra.api.security import (
     ACCESS_TOKEN_TYPE,
     REFRESH_TOKEN_TYPE,
+    TokenClaims,
     TokenError,
     create_access_token,
     create_refresh_token,
@@ -21,7 +22,7 @@ from match.infra.api.security import (
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="user/login")
 
 
-def get_user_id(token: str = Depends(oauth2_scheme)) -> int:
+def get_access_token_claims(token: str = Depends(oauth2_scheme)) -> TokenClaims:
     try:
         return decode_token(token, ACCESS_TOKEN_TYPE)
     except TokenError:
@@ -29,12 +30,12 @@ def get_user_id(token: str = Depends(oauth2_scheme)) -> int:
 
 
 def authenticated_user(
-    user_id: int = Depends(get_user_id),
+    claims: TokenClaims = Depends(get_access_token_claims),
     service: MatchService = Depends(get_service),
 ) -> User:
     try:
-        return service.get_user_by_id(user_id)
-    except UserNotFound:
+        return service.get_session_user(claims.user_id, claims.issued_at)
+    except (UserNotFound, SessionRevoked):
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
 
 
@@ -69,8 +70,9 @@ def refresh(
     params: RefreshRequestSchema, service: MatchService = Depends(get_service)
 ) -> TokenSchema:
     try:
-        user = service.get_user_by_id(decode_token(params.refresh_token, REFRESH_TOKEN_TYPE))
-    except (TokenError, UserNotFound):
+        claims = decode_token(params.refresh_token, REFRESH_TOKEN_TYPE)
+        user = service.get_session_user(claims.user_id, claims.issued_at)
+    except (TokenError, UserNotFound, SessionRevoked):
         raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED)
     return TokenSchema(
         access_token=create_access_token(user.id),
