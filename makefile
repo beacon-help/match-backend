@@ -2,6 +2,7 @@ SERVICE = match-backend
 FORMAT_TOOLS_DIR = format-tools
 name =
 before =
+UV_FLAGS =
 OPENAPI_OUTPUT = ./openapi_specs.json
 
 list:
@@ -57,7 +58,7 @@ migration:
 	docker compose run $(SERVICE) uv run alembic revision -m=$(name) --autogenerate
 
 upgrade:
-	docker compose run $(SERVICE) uv run alembic upgrade head
+	docker compose run $(SERVICE) uv run $(UV_FLAGS) alembic upgrade head
 
 downgrade:
 	docker compose run $(SERVICE) uv run alembic downgrade -1
@@ -76,10 +77,10 @@ gen-specs:
 	docker compose run $(SERVICE) uv run python scripts/generate_openapi.py --output $(OPENAPI_OUTPUT)
 
 populate-test-data:
-	docker compose run $(SERVICE) uv run python scripts/populate_test_data.py
+	docker compose run $(SERVICE) uv run $(UV_FLAGS) python scripts/populate_test_data.py
 
 recreate-test-db:
 	make reset-db
-	make upgrade
-	make populate-test-data
+	make upgrade UV_FLAGS=--no-sync
+	make populate-test-data UV_FLAGS=--no-sync
 	docker compose restart $(SERVICE)
