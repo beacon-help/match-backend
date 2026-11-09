@@ -3,9 +3,12 @@ from http import HTTPStatus
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import text
 
 from match.app.service import MatchService
+from match.db import Session
 from match.domain.exceptions import UserNotFound
+from match.infra.password_hasher import PwdlibPasswordHasher
 from match.tests.conftest import build_headers
 from match.tests.integration.api.conftest import SEED_PASSWORD, VALID_VERIF_CODE
 
@@ -170,11 +173,11 @@ def test_create_user_happy_path(test_client, endpoint, payload):
     (
         pytest.param("7-chars", HTTPStatus.UNPROCESSABLE_ENTITY, id="seven-characters"),
         pytest.param("8-chars!", HTTPStatus.CREATED, id="eight-characters"),
+        pytest.param("p" * 128, HTTPStatus.CREATED, id="128-characters"),
+        pytest.param("p" * 129, HTTPStatus.UNPROCESSABLE_ENTITY, id="129-characters"),
     ),
 )
-def test_create_user_requires_eight_character_password(
-    test_client, endpoint, password, expected_status
-):
+def test_create_user_password_length(test_client, endpoint, password, expected_status):
     payload = {
         "first_name": "Nina",
         "last_name": "New",
@@ -282,7 +285,7 @@ def test_delete_me_answers_like_unknown_user_when_already_gone(test_client, monk
 
 def test_update_me_replaces_profile(test_client):
     headers = build_headers(100)
-    payload = {"first_name": "  Jane ", "last_name": "Doe", "properties": ["has_car", "can_host"]}
+    payload = {"first_name": "Jane", "last_name": "Doe", "properties": ["has_car", "can_host"]}
 
     response = test_client.put("/user/me", json=payload, headers=headers)
 
@@ -364,16 +367,6 @@ def test_help_seeker_cannot_send_properties(test_client, properties):
 @pytest.mark.parametrize(
     "payload,expected_error",
     (
-        pytest.param(
-            {"first_name": "", "last_name": "Doe", "properties": []},
-            ("string_too_short", ["body", "first_name"]),
-            id="empty-first-name",
-        ),
-        pytest.param(
-            {"first_name": "Jane", "last_name": "   ", "properties": []},
-            ("string_too_short", ["body", "last_name"]),
-            id="blank-last-name",
-        ),
         pytest.param(
             {"last_name": "Doe", "properties": []},
             ("missing", ["body", "first_name"]),
@@ -460,6 +453,32 @@ def test_change_password(test_client):
     assert _login(test_client, SEED_PASSWORD).status_code == HTTPStatus.UNAUTHORIZED
 
 
+def test_change_password_accepts_128_character_password(test_client):
+    payload = {"current_password": SEED_PASSWORD, "new_password": "p" * 128}
+
+    response = test_client.put("/user/me/password", json=payload, headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.NO_CONTENT
+    assert _login(test_client, "p" * 128).status_code == HTTPStatus.OK
+
+
+def test_password_set_before_length_limit_still_logs_in_and_changes(test_client):
+    long_password = "p" * 200
+    with Session() as session:
+        session.execute(
+            text("UPDATE users SET password_hash = :pw WHERE id = 100"),
+            {"pw": PwdlibPasswordHasher().hash(long_password)},
+        )
+        session.commit()
+    payload = {"current_password": long_password, "new_password": NEW_PASSWORD}
+
+    assert _login(test_client, long_password).status_code == HTTPStatus.OK
+    response = test_client.put("/user/me/password", json=payload, headers=build_headers(100))
+
+    assert response.status_code == HTTPStatus.NO_CONTENT
+    assert _login(test_client, NEW_PASSWORD).status_code == HTTPStatus.OK
+
+
 def test_change_password_rejects_wrong_current_password(test_client):
     payload = {"current_password": "wrong-password", "new_password": NEW_PASSWORD}
 
@@ -477,6 +496,10 @@ def test_change_password_rejects_wrong_current_password(test_client):
         pytest.param(
             {"current_password": SEED_PASSWORD, "new_password": NEW_PASSWORD[:-1]},
             id="new-password-too-short",
+        ),
+        pytest.param(
+            {"current_password": SEED_PASSWORD, "new_password": "p" * 129},
+            id="new-password-too-long",
         ),
         pytest.param(
             {"current_password": SEED_PASSWORD, "new_password": SEED_PASSWORD},

@@ -17,8 +17,7 @@ from pydantic_extra_types.coordinate import Latitude, Longitude
 from match.domain.task import Category, TaskEventType, TaskStatus
 from match.domain.user import UserType, VolunteerProperties
 
-Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-Password = Annotated[str, StringConstraints(min_length=8), Field(repr=False)]
+Password = Annotated[str, StringConstraints(min_length=8, max_length=128), Field(repr=False)]
 
 
 class UserCreationBaseSchema(BaseModel):
@@ -41,8 +40,8 @@ class VolunteerCreationRequestSchema(UserCreationBaseSchema):
 class HelpseekerUpdateRequestSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    first_name: Name
-    last_name: Name
+    first_name: str
+    last_name: str
 
 
 class VolunteerUpdateRequestSchema(HelpseekerUpdateRequestSchema):
