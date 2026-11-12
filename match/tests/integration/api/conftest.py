@@ -8,10 +8,14 @@ VALID_VERIF_CODE = "2f75ccc7-9f7d-45f3-87bf-44345b0f2f06"
 SEED_PASSWORD = "s3cr3t-password"
 
 
+@pytest.fixture(scope="session")
+def seed_password_hash():
+    return PwdlibPasswordHasher().hash(SEED_PASSWORD)
+
+
 @pytest.fixture(autouse=True)
-def populate_db():
+def populate_db(seed_password_hash):
     session = Session()
-    password_hash = PwdlibPasswordHasher().hash(SEED_PASSWORD)
     clear_users_statement = "DELETE FROM users;"
     clear_statement = "DELETE FROM tasks;"
     clear_images_statement = "DELETE FROM images;"
@@ -44,7 +48,7 @@ def populate_db():
             "code_101": "verif-code-101",
             "code_102": "verif-code-102",
             "code_103": VALID_VERIF_CODE,
-            "pw": password_hash,
+            "pw": seed_password_hash,
         },
     )
     session.execute(text(statement))
