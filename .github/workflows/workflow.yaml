@@ -1,36 +1,32 @@
 env:
   DOCKER_SERVICE: match-backend-match-backend-1
   FORMAT_TOOLS_DIR: format-tools
+  COMPOSE_IMAGE: match-backend-match-backend
 
 name: Workflow
 
 on: [push, pull_request]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          token: ${{ secrets.MATCH_CONFIG_TOKEN || github.token }}
-      - name: Build docker containers
-        run: |
-          docker compose build
-
   code-style:
-    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           token: ${{ secrets.MATCH_CONFIG_TOKEN || github.token }}
-      - name: Build docker containers
-        run: |
-          docker compose up -d
+      - uses: docker/setup-buildx-action@v3
+      - name: Build docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ env.COMPOSE_IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start containers
+        run: docker compose up -d
       - name: Run mypy
         run: docker exec $DOCKER_SERVICE sh $FORMAT_TOOLS_DIR/mypy.sh
       - name: Run black
@@ -39,15 +35,23 @@ jobs:
         run: docker exec  $DOCKER_SERVICE sh $FORMAT_TOOLS_DIR/isort.sh --check
 
   tests:
-    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
           token: ${{ secrets.MATCH_CONFIG_TOKEN || github.token }}
-      - name: Build docker containers
+      - uses: docker/setup-buildx-action@v3
+      - name: Build docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ env.COMPOSE_IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start containers
         run: |
           docker compose up -d
           docker exec $DOCKER_SERVICE cp dotenv/.env.test dotenv/.env
