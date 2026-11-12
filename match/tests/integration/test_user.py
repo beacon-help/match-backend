@@ -63,6 +63,7 @@ class TestCaseUserSignupPath:
 
         me_response_2 = test_client.get(self._USER_ME_URL, headers=headers)
         assert me_response_2.status_code == HTTPStatus.OK
+        assert me_response_2.json()["properties"] == signup_payload.get("properties", [])
 
 
 class TestUserTaskInteractions:

@@ -119,6 +119,8 @@
             "type": "string"
           },
           "password": {
+            "maxLength": 128,
+            "minLength": 8,
             "title": "Password",
             "type": "string"
           }
@@ -130,6 +132,25 @@
           "password"
         ],
         "title": "HelpseekerCreationRequestSchema",
+        "type": "object"
+      },
+      "HelpseekerUpdateRequestSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "last_name": {
+            "title": "Last Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name"
+        ],
+        "title": "HelpseekerUpdateRequestSchema",
         "type": "object"
       },
       "ImageSchema": {
@@ -191,6 +212,27 @@
           "address"
         ],
         "title": "Location",
+        "type": "object"
+      },
+      "PasswordChangeRequestSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "current_password": {
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeRequestSchema",
         "type": "object"
       },
       "PublicTaskSchema": {
@@ -617,6 +659,13 @@
             "title": "Last Name",
             "type": "string"
           },
+          "properties": {
+            "items": {
+              "$ref": "#/components/schemas/VolunteerProperties"
+            },
+            "title": "Properties",
+            "type": "array"
+          },
           "user_type": {
             "$ref": "#/components/schemas/UserType"
           }
@@ -627,7 +676,8 @@
           "first_name",
           "last_name",
           "email",
-          "is_verified"
+          "is_verified",
+          "properties"
         ],
         "title": "UserSchema",
         "type": "object"
@@ -708,6 +758,8 @@
             "type": "string"
           },
           "password": {
+            "maxLength": 128,
+            "minLength": 8,
             "title": "Password",
             "type": "string"
           },
@@ -738,6 +790,33 @@
         ],
         "title": "VolunteerProperties",
         "type": "string"
+      },
+      "VolunteerUpdateRequestSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "last_name": {
+            "title": "Last Name",
+            "type": "string"
+          },
+          "properties": {
+            "items": {
+              "$ref": "#/components/schemas/VolunteerProperties"
+            },
+            "title": "Properties",
+            "type": "array"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "properties"
+        ],
+        "title": "VolunteerUpdateRequestSchema",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1400,6 +1479,97 @@
           }
         ],
         "summary": "Get Me",
+        "tags": [
+          "user"
+        ]
+      },
+      "put": {
+        "operationId": "update_me_user_me_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/HelpseekerUpdateRequestSchema"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VolunteerUpdateRequestSchema"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Update Me",
+        "tags": [
+          "user"
+        ]
+      }
+    },
+    "/user/me/password": {
+      "put": {
+        "operationId": "change_my_password_user_me_password_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeRequestSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "summary": "Change My Password",
         "tags": [
           "user"
         ]

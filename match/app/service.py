@@ -2,7 +2,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Iterable
 
-from match.app.exceptions import AuthenticationFailed, ImageNotFound
+from match.app.exceptions import (
+    AuthenticationFailed,
+    CurrentPasswordIncorrect,
+    ImageNotFound,
+    SessionRevoked,
+)
 from match.domain.exceptions import UserNotFound, UserVerificationCodeInvalid
 from match.domain.interfaces import (
     ImageRepository,
@@ -13,7 +18,13 @@ from match.domain.interfaces import (
     UnitOfWork,
 )
 from match.domain.task import Category, ImageId, Location, Task, TaskStatus
-from match.domain.user import User, UserId, UserType, create_user_verification_message
+from match.domain.user import (
+    User,
+    UserId,
+    UserType,
+    VolunteerProperties,
+    create_user_verification_message,
+)
 
 VERIFICATION_URL = "localhost:8000/user/verify/"
 
@@ -26,6 +37,7 @@ class MatchService:
     password_hasher: PasswordHasher
     unit_of_work: UnitOfWork
     _fe_host: str
+    _revoke_sessions_on_password_change: bool
 
     def _construct_verification_url(self, code: str) -> str:
         return f"{self._fe_host}/verify/{code}"
@@ -52,18 +64,29 @@ class MatchService:
         self.unit_of_work.commit()
         return user
 
+    def _verify_password(self, user: User, password: str) -> bool:
+        return user.password_hash is not None and self.password_hasher.verify(
+            password, user.password_hash
+        )
+
     def authenticate(self, email: str, password: str) -> User:
         try:
             user = self.repository.get_user_by_email(email)
         except UserNotFound:
             raise AuthenticationFailed
-        if user.password_hash is None or not self.password_hasher.verify(
-            password, user.password_hash
-        ):
+        if not self._verify_password(user, password):
             raise AuthenticationFailed
         if not user.is_verified:
             raise AuthenticationFailed
         return user
+
+    def change_password(self, user_id: int, current_password: str, new_password: str) -> None:
+        user = self.get_user_by_id(user_id)
+        if not self._verify_password(user, current_password):
+            raise CurrentPasswordIncorrect
+        user.change_password(self.password_hasher.hash(new_password))
+        self.repository.user_update(user)
+        self.unit_of_work.commit()
 
     def send_verification_request(self, user: User) -> None:
         if not user.verification_code:
@@ -84,6 +107,27 @@ class MatchService:
 
     def get_user_by_id(self, user_id: int) -> User:
         return self.repository.get_user_by_id(user_id)
+
+    def get_session_user(self, user_id: int, issued_at: datetime) -> User:
+        user = self.get_user_by_id(user_id)
+        if self._revoke_sessions_on_password_change and user.session_predates_password_change(
+            issued_at
+        ):
+            raise SessionRevoked
+        return user
+
+    def update_profile(
+        self,
+        user_id: int,
+        first_name: str,
+        last_name: str,
+        properties: list[VolunteerProperties],
+    ) -> User:
+        user = self.get_user_by_id(user_id)
+        user.update_profile(first_name=first_name, last_name=last_name, properties=properties)
+        user = self.repository.user_update(user)
+        self.unit_of_work.commit()
+        return user
 
     def delete_user(self, user_id: int) -> None:
         user = self.get_user_by_id(user_id)

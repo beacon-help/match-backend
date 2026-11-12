@@ -3,9 +3,15 @@ from datetime import timezone as tz
 
 import pytest
 
-from match.app.exceptions import ImageNotFound
+from match.app.exceptions import CurrentPasswordIncorrect, ImageNotFound, SessionRevoked
 from match.app.service import MatchService
-from match.domain.exceptions import RepositoryException, TaskNotFound, UserNotFound
+from match.domain.exceptions import (
+    HelpSeekerCannotHaveProperties,
+    RepositoryException,
+    TaskNotFound,
+    UserNotFound,
+)
+from match.domain.user import VolunteerProperties
 from match.infra.image_repository import LocalImageRepository
 from match.infra.message_client import FakeMessageClient
 from match.infra.password_hasher import PwdlibPasswordHasher
@@ -22,6 +28,7 @@ def service(tmp_path, config):
         password_hasher=PwdlibPasswordHasher(),
         unit_of_work=FakeUnitOfWork(),
         _fe_host=config.FE_HOST,
+        _revoke_sessions_on_password_change=True,
     )
 
 
@@ -108,3 +115,74 @@ def test_delete_user_commits_once(service):
     service.delete_user(100)
 
     assert service.unit_of_work.commits == 1
+
+
+def test_update_profile_saves_name_and_properties(service):
+    user = service.update_profile(
+        100, first_name="Jane", last_name="Doe", properties=[VolunteerProperties.HAS_CAR]
+    )
+
+    assert (user.first_name, user.last_name, user.properties) == ("Jane", "Doe", ["has_car"])
+    assert service.get_user_by_id(100) == user
+    assert service.unit_of_work.commits == 1
+
+
+def test_update_profile_rejects_help_seeker_properties(service):
+    with pytest.raises(HelpSeekerCannotHaveProperties):
+        service.update_profile(
+            101, first_name="Jane", last_name="Doe", properties=[VolunteerProperties.HAS_CAR]
+        )
+
+    assert service.get_user_by_id(101).first_name == "Adam"
+    assert service.unit_of_work.commits == 0
+
+
+def _set_password(service, user_id, password):
+    service.repository.users[user_id].password_hash = service.password_hasher.hash(password)
+
+
+def test_change_password_stores_new_hash(service):
+    _set_password(service, 100, "old-password")
+
+    service.change_password(100, current_password="old-password", new_password="new-password")
+
+    password_hash = service.get_user_by_id(100).password_hash
+    assert service.password_hasher.verify("new-password", password_hash)
+    assert not service.password_hasher.verify("old-password", password_hash)
+    assert service.unit_of_work.commits == 1
+
+
+def test_change_password_rejects_wrong_current_password(service):
+    _set_password(service, 100, "old-password")
+    password_hash = service.get_user_by_id(100).password_hash
+
+    with pytest.raises(CurrentPasswordIncorrect):
+        service.change_password(100, current_password="wrong-password", new_password="new-password")
+
+    assert service.get_user_by_id(100).password_hash == password_hash
+    assert service.unit_of_work.commits == 0
+
+
+def test_change_password_rejects_user_without_password(service):
+    with pytest.raises(CurrentPasswordIncorrect):
+        service.change_password(100, current_password="", new_password="new-password")
+
+    assert service.get_user_by_id(100).password_hash is None
+
+
+def test_session_from_before_password_change_is_revoked(service):
+    issued_at = datetime.now(tz.utc) - timedelta(seconds=1)
+    _set_password(service, 100, "old-password")
+    service.change_password(100, current_password="old-password", new_password="new-password")
+
+    with pytest.raises(SessionRevoked):
+        service.get_session_user(100, issued_at)
+
+
+def test_session_from_before_password_change_survives_when_revocation_is_off(service):
+    service._revoke_sessions_on_password_change = False
+    issued_at = datetime.now(tz.utc) - timedelta(seconds=1)
+    _set_password(service, 100, "old-password")
+    service.change_password(100, current_password="old-password", new_password="new-password")
+
+    assert service.get_session_user(100, issued_at).id == 100

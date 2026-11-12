@@ -1,18 +1,30 @@
 import enum
 from datetime import datetime
+from typing import Annotated, Any, Self
 
-from pydantic import AnyUrl, BaseModel, ConfigDict, EmailStr
+from pydantic import (
+    AnyUrl,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    PlainValidator,
+    StringConstraints,
+    model_validator,
+)
 from pydantic_extra_types.coordinate import Latitude, Longitude
 
 from match.domain.task import Category, TaskEventType, TaskStatus
 from match.domain.user import UserType, VolunteerProperties
+
+Password = Annotated[str, StringConstraints(min_length=8, max_length=128), Field(repr=False)]
 
 
 class UserCreationBaseSchema(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
-    password: str
+    password: Password
 
 
 class HelpseekerCreationRequestSchema(UserCreationBaseSchema):
@@ -25,6 +37,41 @@ class VolunteerCreationRequestSchema(UserCreationBaseSchema):
     properties: list[VolunteerProperties]
 
 
+class HelpseekerUpdateRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    first_name: str
+    last_name: str
+
+
+class VolunteerUpdateRequestSchema(HelpseekerUpdateRequestSchema):
+    properties: list[VolunteerProperties]
+
+
+# Documents both body shapes but passes the body through unvalidated; the API validates it
+# with the schema matching the signed-in user's type.
+ProfileUpdateBody = Annotated[
+    Any,
+    PlainValidator(
+        lambda body: body,
+        json_schema_input_type=HelpseekerUpdateRequestSchema | VolunteerUpdateRequestSchema,
+    ),
+]
+
+
+class PasswordChangeRequestSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: Annotated[str, Field(repr=False)]
+    new_password: Password
+
+    @model_validator(mode="after")
+    def check_new_password_differs(self) -> Self:
+        if self.new_password == self.current_password:
+            raise ValueError("New password must differ from the current password.")
+        return self
+
+
 class UserSchema(BaseModel):
     id: int
     user_type: UserType
@@ -32,6 +79,7 @@ class UserSchema(BaseModel):
     last_name: str
     email: EmailStr
     is_verified: bool
+    properties: list[VolunteerProperties]
 
 
 class PublicUserSchema(BaseModel):
